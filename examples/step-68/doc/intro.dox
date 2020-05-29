@@ -5,7 +5,7 @@
 Bruno Blais (Polytechnique Montréal),
 Toni El Geitani Nehme (Polytechnique Montreal),
 Rene Gassmöller (University of California Davis),
-and Peter Munch
+and Peter Munch (Technical University of Munich and Helmholtz-Zentrum Geesthacht)
 </i>
 
 @dealiiTutorialDOI{10.5281/zenodo.3829064,https://zenodo.org/badge/DOI/10.5281/zenodo.3829064.svg}
@@ -23,7 +23,7 @@ Particles play an important part in numerical models for a large
  or they can even be used to simulate the motion of granular matter, as is
  the case with the Discrete Element Method (DEM) (Blais et al. 2019). In the case
  of DEM, the resulting model is not related to the finite element method anymore,
- but just leads to a serie of ordinary differential equation which describes
+ but just leads to a system of ordinary differential equation which describes
  the motion of the particles and the dynamic of their collisions. All of
  these models can be built using deal.II particle handling capabilities.
 
@@ -45,7 +45,7 @@ where $\textbf{x}_{i}^{t+\Delta t}$ and $\textbf{x}_{i}^{t}$ are the position
 of particle $i$ at time $t+\Delta t$ and $t$, respectively and where $\Delta t$
 is the time step. In the present step, the velocity at the location of particles
 is obtainedin two different fashions:
-- By evaluating the velocity function at the location of the particles
+- By evaluating the velocity function at the location of the particles.
 - By evaluating the velocity function on a background triangulation and, using
 a  finite element support, interpolating at the position of the particle.
 
@@ -77,7 +77,7 @@ an array which can be used to store any  arbitrary number of properties
 associated with the particles. Consequently, users can build their own
 particle solver and attribute the desired properties to the particles (e.g. mass,
   diameter, temperature, etc.). In the present tutorial, this is used to
-  store the value of the fluid velocity and the processor id to which the particles
+  store the value of the fluid velocity and the process id to which the particles
   belong.
 
 

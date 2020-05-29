@@ -68,7 +68,7 @@
 #include <deal.II/particles/generators.h>
 
 // Since the particles do not form a triangulation, they have their
-// own specific data out class which will enable us to write them
+// own specific DataOut class which will enable us to write them
 // to commonly used parallel vtu format
 #include <deal.II/particles/data_out.h>
 
@@ -146,7 +146,7 @@ namespace Step68
 
   // There remains the task of declaring what run-time parameters we can accept
   // in input files. Since we have a very limited number of parameters, all
-  // parameters are declared in the same category.
+  // parameters are declared in the same section.
   ParticleTrackingParameters::ParticleTrackingParameters()
     : ParameterAcceptor("Particle Tracking Problem/")
   {

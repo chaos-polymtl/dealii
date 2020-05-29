@@ -1,8 +1,8 @@
 <h1>Results</h1>
 
-The directory in which this program is run contains a example parameter file by defualt.
+The directory in which this program is run contains an example parameter file by default.
 If you do not specify a parameter file as an argument on the command
-line, the program will try to read the file "`parameters.prm`" by default, and
+line, the program will try to read the file "parameters.prm" by default, and
 will execute the two dimensional version of the code.
 
 Regardless of the specific parameter file name, if the specified file does not
@@ -102,11 +102,11 @@ the coarseness of the background mesh.
 
 <h3>Possibilities for extensions</h3>
 
-This steps highlights some of the main capabilities of particle, notably their
+This steps highlights some of the main capabilities of particles, notably their
 capacity to be use in distributed parallel simulations. However, this step could
 be exteded in numerous manners:
 - High-order time integration (for example using a Runge-Kutta 4 method) could be
-used to increase the accuracy and allow for an increased time-steps.
+used to increase the accuracy and allow for an increased time-step size.
 - The full equation of motion (with inertia) could be solved for the particles. In
 this case the particles would need to have additional properties such as their mass,
 and their diameter.
