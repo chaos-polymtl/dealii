@@ -70,6 +70,8 @@
 #include <cmath>
 #include <iostream>
 
+
+
 namespace Step68
 {
   using namespace dealii;
@@ -118,6 +120,8 @@ namespace Step68
     unsigned int particle_insertion_refinement = 3;
   };
 
+
+
   // There remains the task of declaring what run-time parameters we can accept
   // in input files. Since we have a very limited number of parameters, all
   // parameters are declared in the same section.
@@ -151,6 +155,8 @@ namespace Step68
       "Refinement of the volumetric mesh used to insert the particles");
   }
 
+
+
   // @sect3{Velocity profile}
 
   // The velocity profile is provided as a Function object.
@@ -163,9 +169,12 @@ namespace Step68
     Vortex()
       : Function<dim>(dim)
     {}
+
     virtual void vector_value(const Point<dim> &point,
                               Vector<double> &  values) const override;
   };
+
+
 
   template <int dim>
   void Vortex<dim>::vector_value(const Point<dim> &point,
@@ -188,6 +197,8 @@ namespace Step68
         values[2] = 0;
       }
   }
+
+
 
   // @sect3{The <code>ParticleTracking</code> class declaration}
 
@@ -266,6 +277,8 @@ namespace Step68
     bool interpolated_velocity;
   };
 
+
+
   // @sect3{The <code>PatricleTracking</code> class implementation}
 
   // @sect4{Constructor}
@@ -290,6 +303,8 @@ namespace Step68
     , interpolated_velocity(interpolated_velocity)
 
   {}
+
+
 
   // @sect4{Cell weight}
 
@@ -353,6 +368,8 @@ namespace Step68
     Assert(false, ExcInternalError());
     return 0;
   }
+
+
 
   // @sect4{Particles generation}
 
@@ -463,6 +480,8 @@ namespace Step68
           << particle_handler.n_global_particles() << std::endl;
   }
 
+
+
   // @sect4{Background DOFs and interpolation}
 
   // This function sets up the background degree of freedom used for the
@@ -482,6 +501,8 @@ namespace Step68
                           mpi_communicator);
   }
 
+
+
   // This function takes care of interpolating the
   // vortex velocity field to the field vector. This is achieved rather easily
   // by using the <code>VectorTools::interpolate</code> function.
@@ -493,6 +514,8 @@ namespace Step68
     VectorTools::interpolate(mapping, fluid_dh, velocity, field_owned);
     field_relevant = field_owned;
   }
+
+
 
   // @sect4{Time integration of the trajectories}
 
@@ -530,6 +553,8 @@ namespace Step68
         properties[dim] = Utilities::MPI::this_mpi_process(mpi_communicator);
       }
   }
+
+
 
   // We integrate the particle trajectories by interpolating the value of the
   // velocity field at the degrees of freedom to the position of the particles.
@@ -606,6 +631,8 @@ namespace Step68
       }
   }
 
+
+
   // @sect4{Data output}
 
   // These two functions take care of writing both the particles
@@ -642,6 +669,8 @@ namespace Step68
       output_folder, file_name, it, mpi_communicator, 6);
   }
 
+
+
   template <int dim>
   void ParticleTracking<dim>::output_background(unsigned int it)
   {
@@ -676,6 +705,8 @@ namespace Step68
     data_out.write_vtu_with_pvtu_record(
       output_folder, file_name, it, mpi_communicator, 6);
   }
+
+
 
   // @sect4{Running the simulation}
   // This function orchestrates the entire simulation. It is very similar
@@ -746,6 +777,8 @@ namespace Step68
   }
 
 } // namespace Step68
+
+
 
 // @sect3{The main() function}
 
