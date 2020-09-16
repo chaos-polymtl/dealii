@@ -628,12 +628,12 @@ namespace Step68
 
   // @sect4{Data output}
 
-  // These two functions take care of writing both the particles
+  // The next two functions take care of writing both the particles
   // and the background mesh to vtu with a pvtu record. This ensures
   // that the simulation results can be visualized when the simulation is
   // launched in parallel.
   template <int dim>
-  void ParticleTracking<dim>::output_particles(unsigned int it)
+  void ParticleTracking<dim>::output_particles(const unsigned int it)
   {
     Particles::DataOut<dim, dim> particle_output;
 
@@ -651,9 +651,10 @@ namespace Step68
     particle_output.build_patches(particle_handler,
                                   solution_names,
                                   data_component_interpretation);
-    std::string output_folder(par.output_directory);
-    std::string file_name(interpolated_velocity ? "interpolated-particles" :
-                                                  "analytical-particles");
+    const std::string output_folder(par.output_directory);
+    const std::string file_name(interpolated_velocity ?
+                                  "interpolated-particles" :
+                                  "analytical-particles");
 
     pcout << "Writing particle output file: " << file_name << "-" << it
           << std::endl;
@@ -665,7 +666,7 @@ namespace Step68
 
 
   template <int dim>
-  void ParticleTracking<dim>::output_background(unsigned int it)
+  void ParticleTracking<dim>::output_background(const unsigned int it)
   {
     std::vector<std::string> solution_names(dim, "velocity");
     std::vector<DataComponentInterpretation::DataComponentInterpretation>
@@ -689,8 +690,8 @@ namespace Step68
 
     data_out.build_patches(mapping);
 
-    std::string output_folder(par.output_directory);
-    std::string file_name("background");
+    const std::string output_folder(par.output_directory);
+    const std::string file_name("background");
 
     pcout << "Writing background field file: " << file_name << "-" << it
           << std::endl;
