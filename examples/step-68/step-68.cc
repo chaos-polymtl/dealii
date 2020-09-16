@@ -523,7 +523,7 @@ namespace Step68
   // using an analytically defined velocity field. This demonstrates a
   // relatively trivial usage of the particles.
   template <int dim>
-  void ParticleTracking<dim>::euler_step_analytical(double dt)
+  void ParticleTracking<dim>::euler_step_analytical(const double dt)
   {
     Vector<double> particle_velocity(dim);
 
@@ -556,43 +556,34 @@ namespace Step68
 
 
 
-  // We integrate the particle trajectories by interpolating the value of the
-  // velocity field at the degrees of freedom to the position of the particles.
+  // In contrast to the previous function in this function we
+  // integrate the particle trajectories by interpolating the value of
+  // the velocity field at the degrees of freedom to the position of
+  // the particles.
   template <int dim>
-  void ParticleTracking<dim>::euler_step_interpolated(double dt)
+  void ParticleTracking<dim>::euler_step_interpolated(const double dt)
   {
-    std::vector<types::global_dof_index> dof_indices(fluid_fe.dofs_per_cell);
-    Vector<double> dof_data_per_cell(fluid_fe.dofs_per_cell);
+    Vector<double> local_dof_values(fluid_fe.dofs_per_cell);
 
     // We loop over all the local particles. Although this could be achieved
     // directly by looping over all the cells, this would force us
     // to loop over numerous cells which do not contain particles.
-    // Consequently, we loop over all the particles, but, we get the reference
+    // Rather, we loop over all the particles, but, we get the reference
     // of the cell in which the particle lies and then loop over all particles
     // within that cell. This enables us to gather the values of the velocity
-    // out of the field_relevant vector once and use them for all particles
-    // that lie within the cell. Once we are done with all particles on one
-    // cell, we advance the `particle` iterator to the particle past the end of
-    // the ones on the current cell (this is the last line of the `while` loop's
-    // body).
+    // out of the `field_relevant` vector once and use them for all particles
+    // that lie within the cell.
     auto particle = particle_handler.begin();
     while (particle != particle_handler.end())
       {
-        const auto &cell =
+        const auto cell =
           particle->get_surrounding_cell(background_triangulation);
-        const auto &dh_cell =
+        const auto dh_cell =
           typename DoFHandler<dim>::cell_iterator(*cell, &fluid_dh);
-        dh_cell->get_dof_indices(dof_indices);
 
-        // This gathers the velocity information in a local vector to prevent
-        // dynamically re-accessing everything when there are multiple particles
-        // in a cell.
-        for (unsigned int j = 0; j < fluid_fe.dofs_per_cell; ++j)
-          {
-            dof_data_per_cell[j] = field_relevant(dof_indices[j]);
-          }
+        dh_cell->get_dof_values(field_relevant, local_dof_values);
 
-        // This compute the velocity at the particle locations by evaluating
+        // Next, compute the velocity at the particle locations by evaluating
         // the finite element solution at the position of the particles.
         // This is essentially an optimized version of the particle advection
         // functionality in step 19, but instead of creating quadrature
@@ -600,10 +591,10 @@ namespace Step68
         // evaluation by hand, which is somewhat more efficient and only
         // matters for this tutorial, because the particle work is the
         // dominant cost of the whole program.
-        const auto pic = particle_handler.particles_in_cell(cell);
-        for (; particle != pic.end(); ++particle)
+        while (particle->get_surrounding_cell(background_triangulation) == cell)
           {
-            const auto &reference_location = particle->get_reference_location();
+            const Point<dim> reference_location =
+              particle->get_reference_location();
             Tensor<1, dim> particle_velocity;
             for (unsigned int j = 0; j < fluid_fe.dofs_per_cell; ++j)
               {
@@ -611,7 +602,7 @@ namespace Step68
 
                 particle_velocity[comp_j.first] +=
                   fluid_fe.shape_value(j, reference_location) *
-                  dof_data_per_cell[j];
+                  local_dof_values[j];
               }
 
             Point<dim> particle_location = particle->get_location();
@@ -627,6 +618,8 @@ namespace Step68
 
             properties[dim] =
               Utilities::MPI::this_mpi_process(mpi_communicator);
+
+            ++particle;
           }
       }
   }
