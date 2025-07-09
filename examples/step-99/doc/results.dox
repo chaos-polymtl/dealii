@@ -1,0 +1,20 @@
+<h1>Results</h1>
+<!-- Image du résultat qu'on obtient pas mal -->
+
+<h3>Convergence</h3>
+
+<!-- Convergence of the method. L2 norm as a function of h -->
+
+
+<h3>Linear solver iterations</h3>
+
+<!-- Number of iterations of the linear solver as a function of h/wave length -->
+<!-- Comparaison à un solveur Helholtz + GMRES sans preconditionner -->
+
+<h3>Possibilities for extension </h3>
+
+<!-- Meilleur preconditionneur pour le solveur linéaire. -->
+<!-- hp refinement avec le built-in error estimator -->
+
+
+

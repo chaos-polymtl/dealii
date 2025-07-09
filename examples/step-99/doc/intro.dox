@@ -1,0 +1,39 @@
+<i>
+This program was contributed by
+Oreste Marquis (Polytechnique Montréal),
+Bruno Blais (Polytechnique Montréal) and
+Matthias Maier (Texas A&M)
+Bruno Blais was supported by NSERC Discovery grant
+RGPIN-2020-04510, by Compute Canada and Calcul Québec.
+</i>
+
+<h1>Introduction</h1>
+
+<!-- Introduction to the time-harmonic Helmholtz and why we would like to use DPG to solve the Helmholtz equation. As well as the difficulties with this equations -->
+
+<h3>The time-harmonic Helmholtz equation</h3>
+
+<!-- Description of the time-harmonic helmholtz equation. Equations for the boundary conditions. Weak form and ultra-weak form. -->
+<!-- We choose ultra weak and we solve it with DPG this is generally what is done in the literature. -->
+
+<h3>The Discontinuous Petrov-Galerkin Method</h3>
+
+<!-- Introduction of the DPG method. -->
+
+<h4>Polynomial space</h4>
+
+<!-- Interpolation space for the trace and within the elmeent (trial space) -->
+<!-- Test space minimal order of the test space -->
+<!-- Energy norm -->
+
+<h4>Elementary system without boundary conditions</h4>
+
+<!-- Application to ultra-weak form of Helmhotlz equation-->
+
+<h4>Implementation of the boundary conditions</h4>
+
+<!-- type of boundary conditions and how they are implemented -->
+<!-- Forme ultra weak -->
+<!-- Modification of energy norm -->
+
+<h4>Final elementary system and condensation</h4>
