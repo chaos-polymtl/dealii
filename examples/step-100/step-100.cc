@@ -675,7 +675,7 @@ namespace Step100
                         G_matrix(i, j) +=
                           (((tau_j * tau_i_conj) +
                             (tau_j_div * tau_i_div_conj) +
-                            (iomega * tau_j * conj_iomega * tau_i_conj)) *
+                            (conj_iomega * tau_j * iomega * tau_i_conj)) *
                            JxW)
                             .real();
                       }
@@ -686,9 +686,9 @@ namespace Step100
                               (current_element_test_j == 3)))
                       {
                         // (grad(v), (i omega tau)*) + (i omega v, div(tau) *)
-                        G_matrix(i, j) +=
-                          (((v_j_grad * conj_iomega * tau_i_conj) +
-                            (iomega * v_j * tau_i_div_conj)) *
+                        G_matrix(i, j) -=
+                          (((v_j_grad * iomega * tau_i_conj) +
+                            (conj_iomega * v_j * tau_i_div_conj)) *
                            JxW)
                             .real();
                       }
@@ -699,9 +699,9 @@ namespace Step100
                               (current_element_test_j == 1)))
                       {
                         // ( i omega tau , grad(v)*) + (div(tau), (i omega v) *)
-                        G_matrix(i, j) +=
-                          (((iomega * tau_j * v_i_grad_conj) +
-                            (tau_j_div * conj_iomega * v_i_conj)) *
+                        G_matrix(i, j) -=
+                          (((conj_iomega * tau_j * v_i_grad_conj) +
+                            (tau_j_div * iomega * v_i_conj)) *
                            JxW)
                             .real();
                       }
@@ -715,7 +715,7 @@ namespace Step100
                         // v)*)
                         G_matrix(i, j) +=
                           (((v_j * v_i_conj) + (v_j_grad * v_i_grad_conj) +
-                            (iomega * v_j * conj_iomega * v_i_conj)) *
+                            (conj_iomega * v_j * iomega * v_i_conj)) *
                            JxW)
                             .real();
                       }
@@ -963,7 +963,7 @@ namespace Step100
                                  (current_element_test_j == 1)))
                               {
                                 // -(tau_n_j, tau_n_i*)
-                                G_matrix(i, j) -=
+                                G_matrix(i, j) +=
                                   (tau_n_j * tau_n_i_conj * JxW_face).real();
                               }
                             else if (((current_element_test_i == 0) ||
@@ -991,8 +991,8 @@ namespace Step100
                                      ((current_element_test_j == 2) ||
                                       (current_element_test_j == 3)))
                               {
-                                // (k_n/ k * v_j, k_n/ k * v_i_conj)
-                                G_matrix(i, j) -= (k_ratio * v_j * k_ratio *
+                                // -(k_n/ k * v_j, k_n/ k * v_i_conj)
+                                G_matrix(i, j) += (k_ratio * v_j * k_ratio *
                                                    v_i_conj * JxW_face)
                                                     .real();
                               }
