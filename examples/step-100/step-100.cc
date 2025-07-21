@@ -360,7 +360,7 @@ namespace Step100
               FE_RaviartThomas<dim>(degree + delta_degree),
               FE_Q<dim>(degree + delta_degree + 1),
               FE_Q<dim>(degree + delta_degree + 1))
-    , // (tau, tau_imag, v, v_imag)
+    , // (v, v_imag, q, q_imag)
     dof_handler_test(triangulation)
     , wavenumber(wavenumber)
     , theta(theta)
@@ -391,17 +391,14 @@ namespace Step100
 
     constraints_skeleton.clear();
 
+    DoFTools::make_hanging_node_constraints(dof_handler_trial_skeleton,
+                                            constraints_skeleton);
+
     // Define the constraints for each case
     const FEValuesExtractors::Scalar trial_face_u_real(0);
     const FEValuesExtractors::Scalar trial_face_u_imag(1);
     const FEValuesExtractors::Scalar trial_face_p_real(2);
     const FEValuesExtractors::Scalar trial_face_p_imag(3);
-
-    IndexSet locally_relevant_dofs =
-      DoFTools::extract_locally_relevant_dofs(dof_handler_trial_skeleton);
-    constraints_skeleton.reinit(locally_relevant_dofs);
-    DoFTools::make_hanging_node_constraints(dof_handler_trial_skeleton,
-                                            constraints_skeleton);
 
     BoundaryValues_p_real<dim> p_real(wavenumber, theta, 4);
     BoundaryValues_p_imag<dim> p_imag(wavenumber, theta, 4);
@@ -612,19 +609,19 @@ namespace Step100
             for (const auto i : fe_values_test.dof_indices())
               {
                 // Define the necessary complex test basis functions
-                const auto tau_i_conj =
+                const auto v_i_conj =
                   fe_values_test[test_u].value(i, q_point) -
                   imag * fe_values_test[test_u_imag].value(i, q_point);
 
-                const auto tau_i_div_conj =
+                const auto v_i_div_conj =
                   fe_values_test[test_u].divergence(i, q_point) -
                   imag * fe_values_test[test_u_imag].divergence(i, q_point);
 
-                const auto v_i_conj =
+                const auto q_i_conj =
                   fe_values_test[test_p].value(i, q_point) -
                   imag * fe_values_test[test_p_imag].value(i, q_point);
 
-                const auto v_i_grad_conj =
+                const auto q_i_grad_conj =
                   fe_values_test[test_p].gradient(i, q_point) -
                   imag * fe_values_test[test_p_imag].gradient(i, q_point);
 
@@ -644,19 +641,19 @@ namespace Step100
                 for (const auto j : fe_values_test.dof_indices())
                   {
                     // Create the test basis functions
-                    const auto tau_j =
+                    const auto v_j =
                       fe_values_test[test_u].value(j, q_point) +
                       imag * fe_values_test[test_u_imag].value(j, q_point);
 
-                    const auto tau_j_div =
+                    const auto v_j_div =
                       fe_values_test[test_u].divergence(j, q_point) +
                       imag * fe_values_test[test_u_imag].divergence(j, q_point);
 
-                    const auto v_j =
+                    const auto q_j =
                       fe_values_test[test_p].value(j, q_point) +
                       imag * fe_values_test[test_p_imag].value(j, q_point);
 
-                    const auto v_j_grad =
+                    const auto q_j_grad =
                       fe_values_test[test_p].gradient(j, q_point) +
                       imag * fe_values_test[test_p_imag].gradient(j, q_point);
 
@@ -670,12 +667,12 @@ namespace Step100
                         ((current_element_test_j == 0) ||
                          (current_element_test_j == 1)))
                       {
-                        // (tau,tau*) + (div(tau),div(tau)*) + (i omega tau, (i
-                        // omega tau)*)
+                        // (v,v*) + (div(v),div(v)*) + (i omega v, (i
+                        // omega v)*)
                         G_matrix(i, j) +=
-                          (((tau_j * tau_i_conj) +
-                            (tau_j_div * tau_i_div_conj) +
-                            (conj_iomega * tau_j * iomega * tau_i_conj)) *
+                          (((v_j * v_i_conj) +
+                            (v_j_div * v_i_div_conj) +
+                            (conj_iomega * v_j * iomega * v_i_conj)) *
                            JxW)
                             .real();
                       }
@@ -685,10 +682,10 @@ namespace Step100
                              ((current_element_test_j == 2) ||
                               (current_element_test_j == 3)))
                       {
-                        // (grad(v), (i omega tau)*) + (i omega v, div(tau) *)
+                        // (grad(q), (i omega v)*) + (i omega q, div(v) *)
                         G_matrix(i, j) -=
-                          (((v_j_grad * iomega * tau_i_conj) +
-                            (conj_iomega * v_j * tau_i_div_conj)) *
+                          (((q_j_grad * iomega * v_i_conj) +
+                            (conj_iomega * q_j * v_i_div_conj)) *
                            JxW)
                             .real();
                       }
@@ -698,10 +695,10 @@ namespace Step100
                              ((current_element_test_j == 0) ||
                               (current_element_test_j == 1)))
                       {
-                        // ( i omega tau , grad(v)*) + (div(tau), (i omega v) *)
+                        // ( i omega v , grad(q)*) + (div(v), (i omega v) *)
                         G_matrix(i, j) -=
-                          (((conj_iomega * tau_j * v_i_grad_conj) +
-                            (tau_j_div * iomega * v_i_conj)) *
+                          (((conj_iomega * v_j * q_i_grad_conj) +
+                            (v_j_div * iomega * q_i_conj)) *
                            JxW)
                             .real();
                       }
@@ -711,11 +708,11 @@ namespace Step100
                              ((current_element_test_j == 2) ||
                               (current_element_test_j == 3)))
                       {
-                        // (v,v*) + (grad(v),grad(v)*) + (i omega v, (i omega
+                        // (q,q*) + (grad(q),grad(q)*) + (i omega q, (i omega
                         // v)*)
                         G_matrix(i, j) +=
-                          (((v_j * v_i_conj) + (v_j_grad * v_i_grad_conj) +
-                            (conj_iomega * v_j * iomega * v_i_conj)) *
+                          (((q_j * q_i_conj) + (q_j_grad * q_i_grad_conj) +
+                            (conj_iomega * q_j * iomega * q_i_conj)) *
                            JxW)
                             .real();
                       }
@@ -748,9 +745,9 @@ namespace Step100
                         ((current_element_trial_j == 0) ||
                          (current_element_trial_j == 1)))
                       {
-                        // (i omega u, tau*)
+                        // (i omega u, v*)
                         B_matrix(i, j) +=
-                          ((iomega * u_j * tau_i_conj) * JxW).real();
+                          ((iomega * u_j * v_i_conj) * JxW).real();
                       }
                     // If in Raviart-thomas element and DGQ element
                     else if (((current_element_test_i == 0) ||
@@ -758,8 +755,8 @@ namespace Step100
                              ((current_element_trial_j == 2) ||
                               (current_element_trial_j == 3)))
                       {
-                        // -(p,div(tau)*)
-                        B_matrix(i, j) -= ((p_j * tau_i_div_conj) * JxW).real();
+                        // -(p,div(v)*)
+                        B_matrix(i, j) -= ((p_j * v_i_div_conj) * JxW).real();
                       }
 
                     // If in Q element and DGQ^dim element
@@ -768,8 +765,8 @@ namespace Step100
                              ((current_element_trial_j == 0) ||
                               (current_element_trial_j == 1)))
                       {
-                        // -(u,grad(v)*)
-                        B_matrix(i, j) -= ((u_j * v_i_grad_conj) * JxW).real();
+                        // -(u,grad(q)*)
+                        B_matrix(i, j) -= ((u_j * q_i_grad_conj) * JxW).real();
                       }
                     // If in Q element and DGQ element
                     else if (((current_element_test_i == 2) ||
@@ -777,9 +774,9 @@ namespace Step100
                              ((current_element_trial_j == 2) ||
                               (current_element_trial_j == 3)))
                       {
-                        // (i omega p, v*)
+                        // (i omega p, q*)
                         B_matrix(i, j) +=
-                          ((iomega * p_j * v_i_conj) * JxW).real();
+                          ((iomega * p_j * q_i_conj) * JxW).real();
                       }
                   }
               }
@@ -806,13 +803,13 @@ namespace Step100
                 for (const auto i : fe_face_values_test.dof_indices())
                   {
                     // Create the face test basis functions
-                    const auto tau_n_i_conj =
+                    const auto v_n_i_conj =
                       normal *
                       (fe_face_values_test[test_u].value(i, q_point) -
                        imag *
                          fe_face_values_test[test_u_imag].value(i, q_point));
 
-                    const auto v_i_conj =
+                    const auto q_i_conj =
                       fe_face_values_test[test_p].value(i, q_point) -
                       imag * fe_face_values_test[test_p_imag].value(i, q_point);
 
@@ -849,7 +846,7 @@ namespace Step100
                              (current_element_trial_j == 3)))
                           {
                             B_hat_matrix(i, j) +=
-                              ((p_hat_j * tau_n_i_conj) * JxW_face).real();
+                              ((p_hat_j * v_n_i_conj) * JxW_face).real();
                           }
 
                         // If in Q element and FE_FaceQ for u_n
@@ -884,9 +881,9 @@ namespace Step100
                                 flux_orientation = -1.;
                               }
 
-                            // (u_hat_n, v*)
+                            // (u_hat_n, q*)
                             B_hat_matrix(i, j) +=
-                              (flux_orientation * u_hat_n_j * v_i_conj *
+                              (flux_orientation * u_hat_n_j * q_i_conj *
                                JxW_face)
                                 .real();
                           }
@@ -924,14 +921,14 @@ namespace Step100
                     for (const auto i : fe_face_values_test.dof_indices())
                       {
                         // Create the face test basis functions
-                        const auto tau_n_i_conj =
+                        const auto v_n_i_conj =
                           normal *
                           (fe_face_values_test[test_u].value(i, q_point) -
                            imag *
                              fe_face_values_test[test_u_imag].value(i,
                                                                     q_point));
 
-                        const auto v_i_conj =
+                        const auto q_i_conj =
                           fe_face_values_test[test_p].value(i, q_point) -
                           imag *
                             fe_face_values_test[test_p_imag].value(i, q_point);
@@ -942,13 +939,13 @@ namespace Step100
                         for (const auto j : fe_face_values_test.dof_indices())
                           {
                             // Create the face test basis functions
-                            const auto tau_n_j =
+                            const auto v_n_j =
                               normal *
                               (fe_face_values_test[test_u].value(j, q_point) +
                                imag * fe_face_values_test[test_u_imag].value(
                                         j, q_point));
 
-                            const auto v_j =
+                            const auto q_j =
                               fe_face_values_test[test_p].value(j, q_point) +
                               imag *
                                 fe_face_values_test[test_p_imag].value(j,
@@ -962,18 +959,18 @@ namespace Step100
                                 ((current_element_test_j == 0) ||
                                  (current_element_test_j == 1)))
                               {
-                                // -(tau_n_j, tau_n_i*)
+                                // -(v_n_j, v_n_i*)
                                 G_matrix(i, j) +=
-                                  (tau_n_j * tau_n_i_conj * JxW_face).real();
+                                  (v_n_j * v_n_i_conj * JxW_face).real();
                               }
                             else if (((current_element_test_i == 0) ||
                                       (current_element_test_i == 1)) &&
                                      ((current_element_test_j == 2) ||
                                       (current_element_test_j == 3)))
                               {
-                                // (k_n/ k * v_j, tau_n_i*)
+                                // (k_n/ k * q_j, v_n_i*)
                                 G_matrix(i, j) +=
-                                  (k_ratio * v_j * tau_n_i_conj * JxW_face)
+                                  (k_ratio * q_j * v_n_i_conj * JxW_face)
                                     .real();
                               }
                             else if (((current_element_test_i == 2) ||
@@ -981,9 +978,9 @@ namespace Step100
                                      ((current_element_test_j == 0) ||
                                       (current_element_test_j == 1)))
                               {
-                                // (tau_n_j, k_n/ k * v_i_conj)
+                                // (v_n_j, k_n/ k * q_i_conj)
                                 G_matrix(i, j) +=
-                                  (tau_n_j * k_ratio * v_i_conj * JxW_face)
+                                  (v_n_j * k_ratio * q_i_conj * JxW_face)
                                     .real();
                               }
                             else if (((current_element_test_i == 2) ||
@@ -991,9 +988,9 @@ namespace Step100
                                      ((current_element_test_j == 2) ||
                                       (current_element_test_j == 3)))
                               {
-                                // -(k_n/ k * v_j, k_n/ k * v_i_conj)
-                                G_matrix(i, j) += (k_ratio * v_j * k_ratio *
-                                                   v_i_conj * JxW_face)
+                                // -(k_n/ k * q_j, k_n/ k * q_i_conj)
+                                G_matrix(i, j) += (k_ratio * q_j * k_ratio *
+                                                   q_i_conj * JxW_face)
                                                     .real();
                               }
                           }

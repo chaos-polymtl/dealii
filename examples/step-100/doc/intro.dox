@@ -11,10 +11,62 @@ RGPIN-2020-04510, by Compute Canada and Calcul Québec.
 
 <!-- Introduction to the time-harmonic Helmholtz and why we would like to use DPG to solve the Helmholtz equation. As well as the difficulties with this equations -->
 
+As a follow up on the Helmholtz equation "with the nice sign" of @ref step_7, here we will consider the version with <a
+href="https://en.wikipedia.org/wiki/Helmholtz_equation">equation with
+the "bad sign"</a> , also refered as the indefinite Helmholtz equation:
+@f[
+  -\Delta u - \alpha u = f.
+@f]
+This equation naturally arise when ones interested in time-harmonic processes in electromagnetic or accoustic for example as in represents the time-independent form of the wave-equation. This simple equation has multiple issues numerically which becomes more and more pronounce as the constant $\alpha>0$ becomes large. Notably, the wavelenght scale of the oscillatory behavior under study must be sufficiently resolve to obtain an accurate solution and $\alpha$ cannot be one of the natural frequency of the system or the resulting operator will not be invertible since the equation has all the harmonics as solution.
+
+Among the numerical difficulties that arise from this equation, one that is really desabling is that the indefinitness of the operator hinders the ability of classical iterative methods to solve the system and most preconditioners fail to lead to a convergent method as explained in details by <a
+href="https://www.unige.ch/~gander/Preprints/HelmholtzReview.pdf">O. Ernst and M. J. Gander.</a> A solution to this problem is to make our discretized system of equation positive definite, which bring us to the <a
+href="https://www.cambridge.org/core/services/aop-cambridge-core/content/view/71BCF32CDE92B0924051FA31E8F54DC2/S0962492924000102a.pdf/discontinuous_petrovgalerkin_method.pdf"> Discontinuous Petrov-Galerkin (DPG) method </a>, which is a residual minimization method that always yields an Hermitian positive definite stiffness matrix systems. It follows that using this method allows for the use of the preconditioned Conjugate Gradients (CG) solver instead of a direct one such as UMFPACK.
+
 <h3>The time-harmonic Helmholtz equation</h3>
 
 <!-- Description of the time-harmonic helmholtz equation. Equations for the boundary conditions. Weak form and ultra-weak form. -->
 <!-- We choose ultra weak and we solve it with DPG this is generally what is done in the literature. -->
+
+For our case study of the indefinite Helmholtz equation, we will consider the linear acoustic equations in a 2D square domain $[0,1] \times [0,1]$.:
+@f{align*}{
+    i\omega \mathbf{u} + \nabla p^*                         & = 0, \quad \text{in } \Omega, \qquad \text{(Linear momentum)}\\
+    i\omega \frac{p^*}{c_s^2} + \nabla \cdot \mathbf{u}     & = f, \quad \text{in } \Omega \qquad \text{(Conservation of mass)}, \\
+    p^* & = g_D, \quad \text{on } \Gamma_0, \\
+    \mathbf{u} \cdot \mathbf{n} & = g_N, \quad \text{on } \Gamma_2, \\
+    \mathbf{u} \cdot \mathbf{n}  - \frac{ k_n }{\omega} p^* & = g_R, \quad \text{on } \Gamma_1 \cup \Gamma_3,
+@f}
+where $\omega$ is the angular frequency, $\mathbf{u}$ is the velocity field, $p^*$ is the kinematic pressure ($p/\rho$), $c_s$ is the speed of sound, $k_n$ is the wavenumber in the direction of the surface normal, $f$ is a source term, and $g_{D,N,R}$ are the Dirichlet, Neuman and Robin boundary conditions source term --- we chose to have the 3 kind of boundary conditions in our problem so we could show how each one of them can be implemented. For simplicity we choose $c_s=1$ and we omit the factor in what follows. 
+
+To validate our implementation and study the effect of the angular frequency on our system, we choose the boundaries and source term so the expected solution is the one of a planewave travelling in the direction $\theta$, i.e. :
+@f{align*}{
+    f &= 0
+    g_D &= e^{-i k y \sin(\theta)},\\
+    g_N &= -\sin(\theta) e^{-i k x \cos(\theta)},\\
+    g_R &= 0.
+@f}
+The analytical solution is therefore given by :
+@f{align*}{
+p^*        & = e^{-i k (x \cos(\theta) + y \sin(\theta))},                                                                           \\
+    \mathbf{u} & = \frac{1}{c_s} \begin{pmatrix} \cos(\theta)  \\ \sin(\theta) \end{pmatrix} e^{-i k (x \cos(\theta) + y \sin(\theta))}.
+@f}
+
+To solve the acoustic linear system presented above using FEM, it its common to eliminate the velocity and to multiply by a test function for the pressure $q$. The resulting weak variational formulation is:
+@f{align*}{
+& p^* \in H^1(\Omega) \\
+& (\nabla p^*, \nabla q) - \omega^2 (p^*, q) - \langle \frac{\partial p^*}{\partial n}, q \rangle_{\Gamma} = i \omega \langle g, q \rangle_{\Gamma}, 
+\quad \forall q \in H^1(\Omega).
+@f}
+In the above, we used the following definitions for the (sesquilinear) $L^2$ complex inner product on the domain $\Omega$ and the product on the boundary $\Gamma$ :
+@f{align*}{
+(u,\bar{v})_\Omega & := \sum_{K\in \Omega_h} \int_\Omega u \bar{v} \text{d}x, &  & \langle u,\bar{v} \rangle := \sum_{K\in\Gamma_h} \int_{\Gamma_h} u \bar{v} \text{d}s.
+@f}
+However, it has been showed from previous DPG study that the ultraweak formulation of the problem leads to better results because of its approximability properties. Consequently it is also the one that will be presented here. To obtain it, we relax both the momentum and and conservation of mass equations using the test function $\mathbf{v}$ for the velocity and $q$ for the specific acoustic pressure. It follows that the ultraweak variational formulation of our indefinite Helmholtz problem is: 
+@f{align*}{
+& p^* \in L^2(\Omega), \mathbf{u} \in (L^2(\Omega))^d \\
+& (i \omega \mathbf{u}, \overline{\mathbf{v}})_{\Omega_h} - (p^*, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h} + \langle \hat{p}^*, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\partial \Omega_h} & = 0, \quad \forall \mathbf{v} \in H(\text{div}, K), \\
+    (i\omega p^*, \overline{q})_{\Omega_h} - (\mathbf{u}, \overline{\nabla v})_{\Omega_h} + \langle \mathbf{u} \cdot \mathbf{n},\bar{q} \rangle_{\Gamma}                                                     & = (f, \bar{q})_{\Omega_h}, \quad \forall q \in H^1(K). 
+@f}
 
 <h3>The Discontinuous Petrov-Galerkin Method</h3>
 
