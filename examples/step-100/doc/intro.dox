@@ -11,17 +11,13 @@ RGPIN-2020-04510, by Compute Canada and Calcul Québec.
 
 <!-- Introduction to the time-harmonic Helmholtz and why we would like to use DPG to solve the Helmholtz equation. As well as the difficulties with this equations -->
 
-As a follow up on the Helmholtz equation "with the nice sign" of @ref step_7, here we will consider the version with <a
-href="https://en.wikipedia.org/wiki/Helmholtz_equation">equation with
-the "bad sign"</a> , also refered as the indefinite Helmholtz equation:
+As a follow up on the Helmholtz equation "with the nice sign" of @ref step_7, here we will consider the version with <a href="https://en.wikipedia.org/wiki/Helmholtz_equation">equation with the "bad sign"</a> , also refered as the indefinite Helmholtz equation:
 @f[
   -\Delta u - \alpha u = f.
 @f]
 This equation naturally arise when ones interested in time-harmonic processes in electromagnetic or accoustic for example as in represents the time-independent form of the wave-equation. This simple equation has multiple issues numerically which becomes more and more pronounce as the constant $\alpha>0$ becomes large. Notably, the wavelenght scale of the oscillatory behavior under study must be sufficiently resolve to obtain an accurate solution and $\alpha$ cannot be one of the natural frequency of the system or the resulting operator will not be invertible since the equation has all the harmonics as solution.
 
-Among the numerical difficulties that arise from this equation, one that is really desabling is that the indefinitness of the operator hinders the ability of classical iterative methods to solve the system and most preconditioners fail to lead to a convergent method as explained in details by <a
-href="https://www.unige.ch/~gander/Preprints/HelmholtzReview.pdf">O. Ernst and M. J. Gander.</a> A solution to this problem is to make our discretized system of equation positive definite, which bring us to the <a
-href="https://www.cambridge.org/core/services/aop-cambridge-core/content/view/71BCF32CDE92B0924051FA31E8F54DC2/S0962492924000102a.pdf/discontinuous_petrovgalerkin_method.pdf"> Discontinuous Petrov-Galerkin (DPG) method </a>, which is a residual minimization method that always yields an Hermitian positive definite stiffness matrix systems. It follows that using this method allows for the use of the preconditioned Conjugate Gradients (CG) solver instead of a direct one such as UMFPACK.
+Among the numerical difficulties that arise from this equation, one that is really desabling is that the indefinitness of the operator hinders the ability of classical iterative methods to solve the system and most preconditioners fail to lead to a convergent method as explained in details by <a href="https://www.unige.ch/~gander/Preprints/HelmholtzReview.pdf">O. Ernst and M. J. Gander.</a> A solution to this problem is to make our discretized system of equation positive definite, which bring us to the <a href="https://www.cambridge.org/core/services/aop-cambridge-core/content/view/71BCF32CDE92B0924051FA31E8F54DC2/S0962492924000102a.pdf/discontinuous_petrovgalerkin_method.pdf"> Discontinuous Petrov-Galerkin (DPG) method </a>, which is a residual minimization method that always yields an Hermitian positive definite stiffness matrix systems. It follows that using this method allows for the use of the preconditioned Conjugate Gradients (CG) solver instead of a direct one such as UMFPACK.
 
 <h3>The time-harmonic Helmholtz equation</h3>
 
@@ -196,7 +192,7 @@ where $\alpha = \mathcal{O}(1)$ is a scaling parameter (here chose to be one).
 
 When using the ultraweak form, we can readily implement both Dirichlet and Neumann boundary conditions --- which are in fact a Dirichlet boundary condition on the flux variable of our problem, here the fluid velocity ---  by fixing the corresponding node to the desired value. However, Robin boundary condition are somewhat more challenging because it ties together the two component of space and we do not want to overconstrain the system. To do so, we add an approximate version of the $\mathbf{u} \cdot \mathbf{n}  - \frac{ k_n }{\omega} p^* & = g_R$ into our system by adding the term:
 @f{align*}{
-    \pm \bigg\langle \hat{u}_n - \frac{ k_n}{\omega} \hat{p}^*, \overline{\hat{w}_n - \frac{ k_n}{\omega} \hat{q}^*}  \bigg \rangle_{\Gamma_1 \cup \Gamma_3} = \pm \bigg\langle g,\overline{\hat{w}_n - \frac{ k_n}{\omega} \hat{q}^*} \bigg \rangle_{\Gamma_1 \cup \Gamma_3}, \quad \forall \hat{w}_n \in H^{1/2}(\Gamma_1 \cup \Gamma_3), \hat{q}^* \in H^{-1/2}(\Gamma_1 \cup \Gamma_3)
+    \pm \bigg\langle \hat{u}_n - \frac{ k_n}{\omega} \hat{p}^*, \overline{\hat{w}_n - \frac{ k_n}{\omega} \hat{r}^*}  \bigg \rangle_{\Gamma_1 \cup \Gamma_3} = \pm \bigg\langle g,\overline{\hat{w}_n - \frac{ k_n}{\omega} \hat{r}^*} \bigg \rangle_{\Gamma_1 \cup \Gamma_3}, \quad \forall \hat{w}_n \in H^{1/2}(\Gamma_1 \cup \Gamma_3), \hat{r}^* \in H^{-1/2}(\Gamma_1 \cup \Gamma_3)
 @f}
 This extra relation adds new terms in the third equation of the DPG abstract formulation and change the overall structure to the following:
 @f{equation*}{
@@ -217,11 +213,109 @@ This extra relation adds new terms in the third equation of the DPG abstract for
         g
     \end{pmatrix}.
 @f}
-Furthermor, we want to control the resiudal on this boundary so we need to modify the adjoint graph norm to take it into account as follow:
-
-
-
-We are now finally ready to build our all our relevant matrix and vector.
-
+In the above, we choose the sign so that the whole system remains positive definite. To ensure it, the matrix $D$ needs to be negative semidefinite, so we choose the sign to be negative. As a final consequence of the Robin boundary condition, we also want to control the resiudal on this boundary. Therefore, we need to modify the adjoint graph norm to take it into account as follow:
+@f{align*}{
+    \|(\mathbf{v}, q)\|^2_E = \|\nabla q +\overline{i\omega}\mathbf{v}\|^2 + \|\overline{i\omega}q + \nabla \cdot \mathbf{v}\|^2 + \|\mathbf{v}\|^2 + \|q\|^2 + \|\mathbf{v} \cdot \mathbf{n} + \frac{k_n}{\omega} q||^2_{\Gamma_1 \cup \Gamma_3}.
+@f}
+We are now finally ready to build our all our relevant matrix and vector for our system. 
+@f{equation*}{
+\mathbf{B} =
+    \bordermatrix{ & \mathbf{u}  & p^*  \cr
+    \mathbf{v}  & (i\omega \mathbf{u}, \overline{\mathbf{v}})_{\Omega_h}               & -(p^*, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h}  \cr
+    q              & -(\mathbf{u}, \overline{\nabla q})_{\Omega_h}    & (i\omega \frac{p^*}{c_s^2}, \overline{q})_{\Omega_h} }  
+@f}
+@f{equation*}{
+\mathbf{\hat{B}} =
+    \bordermatrix{ &  \hat{u}_n  & \hat{p}^* \cr
+    \mathbf{v}  & 0  & \langle \hat{p}^*, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\partial \Omega_h}  \cr
+    q              &  \langle \hat{u}_n, \overline{q} \rangle_{\partial \Omega_h} & 0 }  
+@f}
+@f{equation*}{
+\mathbf{G} = \bordermatrix{
+                   & \mathbf{v}                                                           & q \cr
+    \mathbf{v}  &
+        \begin{aligned}
+             & (\mathbf{v}, \overline{\mathbf{v}})_{\Omega_h} + (\nabla \cdot \mathbf{v}, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h} + (\overline{i\omega}\mathbf{v}, i\omega \overline{ \mathbf{v}})_{\Omega_h} \\
+             & + \langle \mathbf{v} \cdot \mathbf{n}, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\Gamma_1 \cup \Gamma_3}
+        \end{aligned}
+        &
+            \begin{aligned}
+             & (\nabla q, i\omega \overline{ \mathbf{v}})_{\Omega_h} + (\overline{ i\omega} q, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h} \\
+             & + \langle \frac{k_n}{\omega}q, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\Gamma_1 \cup \Gamma_3}
+        \end{aligned}
+        \cr
+    q             &
+            \begin{aligned}
+             & (\overline{i\omega} \mathbf{v}, \overline{\nabla q})_{\Omega_h} + (\nabla \cdot \mathbf{v}, i\omega \overline{ q})_{\Omega_h} \\
+             & + \langle \mathbf{v} \cdot \mathbf{n}, \overline{\frac{k_n}{\omega}q} \rangle_{\Gamma_1 \cup \Gamma_3}
+        \end{aligned}
+                   &
+        \begin{aligned}
+             & (q, \overline{q})_{\Omega_h} + (\nabla q, \overline{\nabla q})_{\Omega_h}                                                       \\
+             & + (\overline{ i\omega} q, i\omega\overline{ q})_{\Omega_h} + \langle \frac{k_n}{\omega}q, \overline{\frac{k_n}{\omega}q} \rangle_{\Gamma_1 \cup \Gamma_3}
+        \end{aligned}
+    }
+@f}
+@f{equation*}{
+    \mathbf{D} = \bordermatrix{
+                   & \hat{u}_n                                                               & \hat{p}^* \cr
+    \hat{u}_n      &
+        \begin{aligned}
+             & - \langle \hat{u}_n, \overline{\hat{u}_n} \rangle_{\Gamma_1 \cup \Gamma_3}
+        \end{aligned}
+                   &
+        \begin{aligned}
+             & \langle \hat{u}_n, \overline{\frac{k_n}{\omega} \hat{p}^*} \rangle_{\Gamma_1 \cup \Gamma_3}
+        \end{aligned}
+        \cr
+    \hat{q}^*      &
+        \begin{aligned}
+             & \langle \frac{k_n}{\omega} \hat{p}^*, \overline{\hat{u}_n} \rangle_{\Gamma_1 \cup \Gamma_3}
+        \end{aligned}
+                   &
+        \begin{aligned}
+             & - \langle \frac{k_n}{\omega} \hat{p}^*, \overline{\frac{k_n}{\omega} \hat{p}^*} \rangle_{\Gamma_1 \cup \Gamma_3}
+        \end{aligned}
+                   }
+@f}
+@f{equation*}{
+    \mathbf{l} = \bordermatrix{                                             & f \cr
+    \mathbf{v}  & 0 \cr
+    q              & (f, \overline{q})_{\Omega_h} }    
+@f}
+@f{equation*}{
+\mathbf{g} = \bordermatrix{                                             & f \cr
+    \hat{u}_n      & - \langle g, \overline{\hat{u}_n} \rangle_{\Gamma_1 \cup \Gamma_3} \cr
+    \hat{p}^*      & \langle g, \overline{ \frac{k_n}{\omega} \hat{p}^*} \rangle_{\Gamma_1 \cup \Gamma_3}}
+@f}
 
 <h4>Final elementary system and condensation</h4>
+
+Finally, because of the block of zeroes in the DPG system matrix, it is common to condense it to obtain the following system that removes the residual unknows:
+@f{equation*}{
+    \begin{pmatrix}
+        B^\dagger G^{-1}B       & B^\dagger G^{-1}\hat{B}           \\
+        \hat{B}^\dagger G^{-1}B & \hat{B}^\dagger G^{-1}\hat{B} - D
+    \end{pmatrix}
+    \begin{pmatrix}
+        u_h \\
+        \hat{u}_h
+    \end{pmatrix}
+    =
+    \begin{pmatrix}
+        B^\dagger G^{-1}l \\
+        \hat{B}^\dagger G^{-1}l - g
+    \end{pmatrix}.
+@f}
+To avoid extra coputational cost when solving the matrix, the system can be further condense to only solve for the interfaces unknowns since interior unknows are discontinuous accross element. By posing the following: 
+@f{align*}{
+ & M_1 = B^\dagger G^{-1}B, & 7 M_2 = B^\dagger G^{-1}\hat{B}, && M_3 = \hat{B}^\dagger G^{-1}\hat{B}, && M_4 = B^\dagger G^{-1} && M_5 = \hat{B}^\dagger G^{-1},
+ @f}
+ we can simply solve the following system :
+@f{equation*}{
+    (M_3 - M_2^\dagger M_1^{-1} M_2) \hat{u}_h = (M_5 - M_2^\dagger M_1^{-1} M_4) l,
+@f} 
+which is what we will do in the following program. Once this system has been solved, to recover the solution $u_h$, we can solve the following system on each element:
+@f{equation*}{
+    u_h = M_1^{-1} (M_4 l - M_2 \hat{u}_h).
+@f}

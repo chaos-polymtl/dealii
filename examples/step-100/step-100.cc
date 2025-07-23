@@ -959,7 +959,7 @@ namespace Step100
                                 ((current_element_test_j == 0) ||
                                  (current_element_test_j == 1)))
                               {
-                                // -(v_n_j, v_n_i*)
+                                // (v_n_j, v_n_i*)
                                 G_matrix(i, j) +=
                                   (v_n_j * v_n_i_conj * JxW_face).real();
                               }
@@ -988,7 +988,7 @@ namespace Step100
                                      ((current_element_test_j == 2) ||
                                       (current_element_test_j == 3)))
                               {
-                                // -(k_n/ k * q_j, k_n/ k * q_i_conj)
+                                // (k_n/ k * q_j, k_n/ k * q_i_conj)
                                 G_matrix(i, j) += (k_ratio * q_j * k_ratio *
                                                    q_i_conj * JxW_face)
                                                     .real();
