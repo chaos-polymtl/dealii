@@ -13,10 +13,17 @@
  * ------------------------------------------------------------------------
  */
 
-// @sect1{Include files}
+// @sect3{Include files}
 
-// Most of the deal.II include files have already been covered in previous
-// examples and are not commented on.
+// The DPG method requires a large breadth of element type which are included below:
+
+#include <deal.II/fe/fe_dgq.h>
+#include <deal.II/fe/fe_face.h>
+#include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/fe_raviart_thomas.h>
+#include <deal.II/fe/fe_trace.h>
+
+// The rest of the includes are some well-known files:
 
 #include <deal.II/base/function.h>
 #include <deal.II/base/quadrature_lib.h>
@@ -24,17 +31,11 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
 
-#include <deal.II/fe/fe_dgq.h>
-#include <deal.II/fe/fe_face.h>
-#include <deal.II/fe/fe_q.h>
-#include <deal.II/fe/fe_raviart_thomas.h>
 #include <deal.II/fe/fe_system.h>
-#include <deal.II/fe/fe_trace.h>
 #include <deal.II/fe/fe_values.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_in.h>
-#include <deal.II/grid/grid_refinement.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 
@@ -49,17 +50,22 @@
 
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/data_out_faces.h>
-#include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 
 #include <chrono>
 #include <fstream>
 #include <iostream>
 
-// @sect2{The <code>Step100</code> class}
+// @sect3{The <code>Step100</code> class}
 namespace Step100
 {
   using namespace dealii;
+
+
+
+// TODO --  Note seperate analytical solution into real and imaginary component
+
+//
 
   // Create analytical solution class for kinematic pressure (p)
   template <int dim>
@@ -240,48 +246,84 @@ namespace Step100
     return -1 * analytical_solution_u.value(p, 1, wavenumber, theta).imag();
   }
 
+// @sect3{The <code>DPGHelmholtz</code> class template}
+
+// TODO -- See how to reference existing classes
+
+// Next let's declare the main class of this program. The structure follows that
+// of usual programs. The main difference lies in the fact that we rely on multiple DOFHandlers and FESystem.
+// The DOFHandlers that we rely on are the following:
+// - The <code>dof_handler_trial_interior</code> is for the unknowns in the interior of the cells
+// - The <code>dof_handler_trial_skeleton</code> is for the unknowns in the skeleton
+// - The <code>dof_handler_test</code> is for the test functions. Although we do not use the unknowns associated with this DOFHandler, it enables us to evaluate the test function we will use in DPG.
+// The same applies for the three FESystem: <code>fe_system_trial_interior</code>, <code>fe_system_trial_skeleton</code> and <code>fe_system_test</code>.
+
+// TODO -- Explain in which order we will store each variable.
+
   template <int dim>
-  class DPG
+  class DPGHelmholtz
   {
   public:
-    DPG(const unsigned int degree,
-        const unsigned int delta_degree,
-        const double       wavenumber,
+
+    // TODO -- Add assertion that delta_degree > 0
+    // TODO -- Bounds for the theta.
+
+// The constructor takes as an argument the degree of the trial space as well as the delta degree between the trial space and the test space which is necesasry to constructor the DPG problem.
+    // The <code>delta_degree</code> must be at least 1 to ensure that the DPG method is functional. The parameter <code>theta</code> determines the angle of the incident plane wave. The angle must between $0$ and $\frac{\pi}{2}$
+
+    DPGHelmholtz(unsigned int degree,
+        unsigned int delta_degree,
+        double       wavenumber,
         double             theta);
-    void run(int degree, int delta_degree);
+    void run();
 
   private:
-    void setup_system();
-    void assemble_system(const bool solve_interior = false);
-    void solve_skeleton();
-    void refine_grid(const unsigned int cycle);
-    void output_results(const unsigned int cycle);
-    void calculate_L2_error();
-    template <typename Number>
-    void output_vector_to_csv(std::string                prefix,
-                              const std::vector<Number> &vector) const;
 
-    // Data structures for solving the system
+    // The setup_system function initializes the three DoFHandlers, the system matrix and right-hand side and establishes the boundary conditions that rely on constraints.
+
+    void setup_system();
+
+// The assemble_system assembles both the right-hand side and the system matrix. This function is used twice per resolution and it has two functions.
+    // - When <code>solve_interior = false</code> the system is assembled and is locally condensed such that the resulting system only contains the skeleton uknowns. This is achieved by local condensation.
+    // - When <code>solve_interior = true</code> the system is assembled and the skeleton degrees of freedom are used to reconstruct the interior solution.
+
+    void assemble_system(bool solve_interior = false);
+
+    // Solves the linear system of equation. This linear system of equation is only for the skeleton unknowns.
+    void solve_skeleton();
+
+    // Refines the mesh uniformly
+    void refine_grid(unsigned int cycle);
+
+    // Write the skeleton and the interior unknowns into two different paraview files.
+    void output_results(unsigned int cycle);
+
+    // Calculates the $L^2$ norm of the error using the analytical solution.
+    void calculate_L2_error();
+
     Triangulation<dim> triangulation;
 
-    // Components for the interior
+    // Variables for the interior
     const FESystem<dim> fe_trial_interior;
     DoFHandler<dim>     dof_handler_trial_interior;
     Vector<double>      solution_interior;
 
-    // Components for the skeleton
+    // Variables for the skeleton and, consequently, the system
     const FESystem<dim> fe_trial_skeleton;
     DoFHandler<dim>     dof_handler_trial_skeleton;
     Vector<double>      solution_skeleton;
-    Vector<double>      system_rhs_skeleton;
+    Vector<double>      system_rhs;
+    SparsityPattern           sparsity_pattern;
+    SparseMatrix<double>      system_matrix;
+    AffineConstraints<double> constraints;
 
-    SparsityPattern           sparsity_pattern_skeleton;
-    SparseMatrix<double>      system_matrix_skeleton;
-    AffineConstraints<double> constraints_skeleton;
-
-    // Components for the test space
+    // Variables for the test space
     const FESystem<dim> fe_test;
     DoFHandler<dim>     dof_handler_test;
+
+
+
+    // TODO -- Replace all the vectors with a single table
 
     // Container for the L2 error convergence
     std::vector<double> error_L2_norm;
@@ -299,48 +341,17 @@ namespace Step100
     AnalyticalSolution_p<dim> analytical_solution_p;
     AnalyticalSolution_u<dim> analytical_solution_u;
 
-    // Coefficient
-    double wavenumber;
-    double theta;
+    // Coefficient which are used to define the problem
+    const double wavenumber;
+    const double theta;
   };
 
-  template <int dim>
-  template <typename Number>
-  void DPG<dim>::output_vector_to_csv(std::string                prefix,
-                                      const std::vector<Number> &vector) const
-  {
-    // Write the residual to a file for plotting
-    std::ofstream outputFile(prefix + ".csv");
-
-    // Check if the file opened successfully
-    if (!outputFile.is_open())
-      {
-        std::cerr << "Error opening file!" << std::endl;
-        exit(1);
-      }
-
-    // Write vector elements to the file separated by commas
-    for (size_t i = 0; i < vector.size(); ++i)
-      {
-        outputFile << vector[i];
-        // Add a comma after each element except the last one
-        if (i != vector.size() - 1)
-          {
-            outputFile << ",";
-          }
-      }
-    outputFile << std::endl;
-
-    // Close the file
-    outputFile.close();
-  }
-
-  // @sect3{DPG class implementation}
+  // @sect3{DPGHelmholtz Constructor}
   // The Q elements have a degree higher than the others because their
   // numerotation start at 1 instead of 0.
 
   template <int dim>
-  DPG<dim>::DPG(const unsigned int degree,
+  DPGHelmholtz<dim>::DPGHelmholtz(const unsigned int degree,
                 const unsigned int delta_degree,
                 double             wavenumber,
                 double             theta)
@@ -366,13 +377,16 @@ namespace Step100
     , theta(theta)
   {}
 
-  // @sect4{DPG::setup_system}
+  // @sect3{DPG::setup_system}
+  // This function is similar to the other examples. The main difference lies in the fact that we need to setup multiple DOFHandlers for the interior, the skeleton and the test space.
   template <int dim>
-  void DPG<dim>::setup_system()
+  void DPGHelmholtz<dim>::setup_system()
   {
     dof_handler_trial_skeleton.distribute_dofs(fe_trial_skeleton);
     dof_handler_trial_interior.distribute_dofs(fe_trial_interior);
     dof_handler_test.distribute_dofs(fe_test);
+
+    // We print the number of degree of freedoms for each of the DoFHandler as well as the total number of degree of freedoms.
 
     std::cout << "Number of degrees of freedom on the interior: "
               << dof_handler_trial_interior.n_dofs() << std::endl;
@@ -389,68 +403,73 @@ namespace Step100
                    dof_handler_test.n_dofs()
               << std::endl;
 
-    constraints_skeleton.clear();
+    constraints.clear();
 
     DoFTools::make_hanging_node_constraints(dof_handler_trial_skeleton,
-                                            constraints_skeleton);
+                                            constraints);
 
-    // Define the constraints for each case
-    const FEValuesExtractors::Scalar trial_face_u_real(0);
-    const FEValuesExtractors::Scalar trial_face_u_imag(1);
-    const FEValuesExtractors::Scalar trial_face_p_real(2);
-    const FEValuesExtractors::Scalar trial_face_p_imag(3);
 
+    // We need to specify different boundary conditions for the four unknowns on the faces.
+
+    // First, we define FeValuesExtractor to explicitly which component is related to which variable.
+    const FEValuesExtractors::Scalar face_u_real(0);
+    const FEValuesExtractors::Scalar face_u_imag(1);
+    const FEValuesExtractors::Scalar face_p_real(2);
+    const FEValuesExtractors::Scalar face_p_imag(3);
+
+    // We instantiate the functions that are used to establish the four boundary conditions
     BoundaryValues_p_real<dim> p_real(wavenumber, theta, 4);
     BoundaryValues_p_imag<dim> p_imag(wavenumber, theta, 4);
-
     BoundaryValues_u_real<dim> u_real(wavenumber, theta, 4);
     BoundaryValues_u_imag<dim> u_imag(wavenumber, theta, 4);
 
+    // Using the functions and teh FeValuesExtractor, we impose the four different constraints.
+    // TODO -- Explain why you have these two boundary conditions and relate to the problem statement.
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              0,
                                              p_real,
-                                             constraints_skeleton,
+                                             constraints,
                                              fe_trial_skeleton.component_mask(
-                                               trial_face_p_real));
+                                               face_p_real));
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              0,
                                              p_imag,
-                                             constraints_skeleton,
+                                             constraints,
                                              fe_trial_skeleton.component_mask(
-                                               trial_face_p_imag));
+                                               face_p_imag));
 
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              2,
                                              u_real,
-                                             constraints_skeleton,
+                                             constraints,
                                              fe_trial_skeleton.component_mask(
-                                               trial_face_u_real));
+                                               face_u_real));
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              2,
                                              u_imag,
-                                             constraints_skeleton,
+                                             constraints,
                                              fe_trial_skeleton.component_mask(
-                                               trial_face_u_imag));
+                                               face_u_imag));
+    constraints.close();
 
-    constraints_skeleton.close();
-
+    // The linear system that we form is only related to the skeleton unknowns. We initialize all the necessary variables.
     solution_skeleton.reinit(dof_handler_trial_skeleton.n_dofs());
-    system_rhs_skeleton.reinit(dof_handler_trial_skeleton.n_dofs());
+    system_rhs.reinit(dof_handler_trial_skeleton.n_dofs());
     solution_interior.reinit(dof_handler_trial_interior.n_dofs());
 
     DynamicSparsityPattern dsp(dof_handler_trial_skeleton.n_dofs());
     DoFTools::make_sparsity_pattern(dof_handler_trial_skeleton,
                                     dsp,
-                                    constraints_skeleton,
+                                    constraints,
                                     false);
-    sparsity_pattern_skeleton.copy_from(dsp);
-    system_matrix_skeleton.reinit(sparsity_pattern_skeleton);
+    sparsity_pattern.copy_from(dsp);
+    system_matrix.reinit(sparsity_pattern);
   };
 
-  // @sect4{DPG::assemble_system}
+  // @sect3{DPG::assemble_system}
 
   template <int dim>
-  void DPG<dim>::assemble_system(const bool solve_interior)
+  void DPGHelmholtz<dim>::assemble_system(const bool solve_interior)
   {
     // Define the imaginary unit
     std::complex<double> imag(0., 1.);
@@ -521,7 +540,9 @@ namespace Step100
                   << dofs_per_cell_trial_interior << std::endl;
       }
 
-    // Create the DPG local matrices
+
+    // First we create the system before condensation
+    // We create the DPG local matrices
     LAPACKFullMatrix<double> G_matrix(dofs_per_cell_test, dofs_per_cell_test);
     LAPACKFullMatrix<double> B_matrix(dofs_per_cell_test,
                                       dofs_per_cell_trial_interior);
@@ -529,10 +550,12 @@ namespace Step100
                                           dofs_per_cell_trial_skeleton);
     LAPACKFullMatrix<double> D_matrix(dofs_per_cell_trial_skeleton,
                                       dofs_per_cell_trial_skeleton);
+
+    // We create the DPG local vectors
     Vector<double>           g_vector(dofs_per_cell_trial_skeleton);
     Vector<double>           l_vector(dofs_per_cell_test);
 
-    // Create the condensation matrices
+    // We create the condensation matrices
     LAPACKFullMatrix<double> M1_matrix(dofs_per_cell_trial_interior,
                                        dofs_per_cell_trial_interior);
     LAPACKFullMatrix<double> M2_matrix(dofs_per_cell_trial_interior,
@@ -544,6 +567,7 @@ namespace Step100
     LAPACKFullMatrix<double> M5_matrix(dofs_per_cell_trial_skeleton,
                                        dofs_per_cell_test);
 
+    // During the calculation, we require intermediary matrices that we allocate here.
     LAPACKFullMatrix<double> tmp_matrix(dofs_per_cell_trial_skeleton,
                                         dofs_per_cell_trial_interior);
 
@@ -553,17 +577,21 @@ namespace Step100
     LAPACKFullMatrix<double> tmp_matrix3(dofs_per_cell_trial_skeleton,
                                          dofs_per_cell_test);
 
+    // We also require a temporary condensation vector.
     Vector<double> tmp_vector(dofs_per_cell_trial_interior);
 
-    // Create the local resulting matrices
+    // We create the matrix and the rhs that will be distributed in the full system
     FullMatrix<double> cell_matrix(dofs_per_cell_trial_skeleton,
                                    dofs_per_cell_trial_skeleton);
-    Vector<double>     cell_interior_rhs(dofs_per_cell_trial_interior);
     Vector<double>     cell_skeleton_rhs(dofs_per_cell_trial_skeleton);
+
+    // Finally, when reconstructing the interior solution from the skeleton, we require additional vectors that we allocate here.
+    Vector<double>     cell_interior_rhs(dofs_per_cell_trial_interior);
     Vector<double>     cell_interior_solution(dofs_per_cell_trial_interior);
     Vector<double>     cell_skeleton_solution(dofs_per_cell_trial_skeleton);
 
     // Create the dofs indices mapping container
+    // We recall that the final unknowns of the system are the skeleton unknowns.
     std::vector<types::global_dof_index> local_dof_indices(
       dofs_per_cell_trial_skeleton);
 
@@ -580,27 +608,25 @@ namespace Step100
           cell->as_dof_handler_iterator(dof_handler_trial_interior);
         fe_values_trial_interior.reinit(cell_interior);
 
-        // Reinitialization of the matrices
-        G_matrix.reinit(dofs_per_cell_test, dofs_per_cell_test);
-        B_matrix.reinit(dofs_per_cell_test, dofs_per_cell_trial_interior);
-        B_hat_matrix.reinit(dofs_per_cell_test, dofs_per_cell_trial_skeleton);
-        D_matrix.reinit(dofs_per_cell_trial_skeleton,
-                        dofs_per_cell_trial_skeleton);
-        g_vector.reinit(dofs_per_cell_trial_skeleton);
-        l_vector.reinit(dofs_per_cell_test);
-
-        M1_matrix.reinit(dofs_per_cell_trial_interior,
-                         dofs_per_cell_trial_interior);
-        M2_matrix.reinit(dofs_per_cell_trial_interior,
-                         dofs_per_cell_trial_skeleton);
-        M3_matrix.reinit(dofs_per_cell_trial_skeleton,
-                         dofs_per_cell_trial_skeleton);
-        M4_matrix.reinit(dofs_per_cell_trial_interior, dofs_per_cell_test);
-        M5_matrix.reinit(dofs_per_cell_trial_skeleton, dofs_per_cell_test);
+      // TODO -- Check which one do not need to be = 0 s
+        // Reinitialization of the matrices to zero.
+        G_matrix=0;
+        B_matrix=0;
+        B_hat_matrix=0;
+        D_matrix=0;
+        g_vector=0;
+        l_vector=0;
+        M1_matrix=0;
+        M2_matrix=0;
+        M3_matrix=0;
+        M4_matrix=0;
+        M5_matrix=0;
 
         // Loop over all quadrature points
         for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
+          // TODO -- Check if complex is the right thing to use
+          // Explain why you need the std::complex for the local calculation.
             const std::complex<double> iomega      = imag * wavenumber;
             const std::complex<double> conj_iomega = conj(iomega);
             const double &JxW = fe_values_trial_interior.JxW(q_point);
@@ -1163,37 +1189,37 @@ namespace Step100
 
             // Map to global matrix
             cell_skeleton->get_dof_indices(local_dof_indices);
-            constraints_skeleton.distribute_local_to_global(
+            constraints.distribute_local_to_global(
               cell_matrix,
               cell_skeleton_rhs,
               local_dof_indices,
-              system_matrix_skeleton,
-              system_rhs_skeleton);
+              system_matrix,
+              system_rhs);
           }
       }
   }
 
-  // @sect4{DPG::solve}
+  // @sect3{DPG::solve}
   template <int dim>
-  void DPG<dim>::solve_skeleton()
+  void DPGHelmholtz<dim>::solve_skeleton()
   {
     // Iterative solver
     SolverControl            solver_control(1000000,
-                                 1e-10 * system_rhs_skeleton.l2_norm());
+                                 1e-10 * system_rhs.l2_norm());
     SolverCG<Vector<double>> solver(solver_control);
-    solver.solve(system_matrix_skeleton,
+    solver.solve(system_matrix,
                  solution_skeleton,
-                 system_rhs_skeleton,
+                 system_rhs,
                  PreconditionIdentity());
-    constraints_skeleton.distribute(solution_skeleton);
+    constraints.distribute(solution_skeleton);
 
     std::cout << "   " << solver_control.last_step()
               << " CG iterations needed to obtain convergence." << std::endl;
   }
 
-  // @sect4{DPG::output_results}
+  // @sect3{DPG::output_results}
   template <int dim>
-  void DPG<dim>::output_results(const unsigned int cycle)
+  void DPGHelmholtz<dim>::output_results(const unsigned int cycle)
   {
     // Output cell data
     DataOut<dim> data_out;
@@ -1256,9 +1282,9 @@ namespace Step100
     data_out_faces.write_vtk(output_face);
   }
 
-  // @sect4{DPG::calculate_error}
+  // @sect3{DPG::calculate_error}
   template <int dim>
-  void DPG<dim>::calculate_L2_error()
+  void DPGHelmholtz<dim>::calculate_L2_error()
   {
     QGauss<dim>           quadrature_formula(fe_test.degree + 1);
     FEValues<dim>         fe_values_trial_interior(fe_trial_interior,
@@ -1508,9 +1534,9 @@ namespace Step100
       std::sqrt(L2_error_scalar_hat_imag));
   }
 
-  // @sect4{DPG::refine_grid}
+  // @sect3{DPG::refine_grid}
   template <int dim>
-  void DPG<dim>::refine_grid(const unsigned int cycle)
+  void DPGHelmholtz<dim>::refine_grid(const unsigned int cycle)
   {
     if (cycle == 0)
       {
@@ -1533,9 +1559,9 @@ namespace Step100
     h_size.push_back(GridTools::maximal_cell_diameter<dim>(triangulation));
   }
 
-  // @sect4{DPG::run}
+  // @sect3{DPG::run}
   template <int dim>
-  void DPG<dim>::run(int degree, int delta_degree)
+  void DPGHelmholtz<dim>::run()
   {
     for (unsigned int cycle = 0; cycle < 8; ++cycle)
       {
@@ -1585,36 +1611,6 @@ namespace Step100
         std::cout << "----------------------------------------------------"
                   << std::endl;
       }
-    output_vector_to_csv("L2_error_" + std::to_string(degree) + "_" +
-                           std::to_string(delta_degree),
-                         error_L2_norm);
-    output_vector_to_csv("L2_error_flux_real_" + std::to_string(degree) + "_" +
-                           std::to_string(delta_degree),
-                         error_L2_norm_flux_real);
-    output_vector_to_csv("L2_error_flux_imag_" + std::to_string(degree) + "_" +
-                           std::to_string(delta_degree),
-                         error_L2_norm_flux_imag);
-    output_vector_to_csv("L2_error_scalar_real_" + std::to_string(degree) +
-                           "_" + std::to_string(delta_degree),
-                         error_L2_norm_scalar_real);
-    output_vector_to_csv("L2_error_scalar_imag_" + std::to_string(degree) +
-                           "_" + std::to_string(delta_degree),
-                         error_L2_norm_scalar_imag);
-    output_vector_to_csv("L2_error_flux_hat_real_" + std::to_string(degree) +
-                           "_" + std::to_string(delta_degree),
-                         error_L2_norm_flux_hat_real);
-    output_vector_to_csv("L2_error_flux_hat_imag_" + std::to_string(degree) +
-                           "_" + std::to_string(delta_degree),
-                         error_L2_norm_flux_hat_imag);
-    output_vector_to_csv("L2_error_scalar_hat_real_" + std::to_string(degree) +
-                           "_" + std::to_string(delta_degree),
-                         error_L2_norm_scalar_hat_real);
-    output_vector_to_csv("L2_error_scalar_hat_imag_" + std::to_string(degree) +
-                           "_" + std::to_string(delta_degree),
-                         error_L2_norm_scalar_hat_imag);
-    output_vector_to_csv("h_size_" + std::to_string(degree) + "_" +
-                           std::to_string(delta_degree),
-                         h_size);
   }
 } // end of namespace Step100
 
@@ -1639,9 +1635,9 @@ int main()
       double wavenumber = 2 * 2. * M_PI; // N oscillations times 2 pi
       double theta      = M_PI / 4.;     // Angle of incidence in radians
 
-      Step100::DPG<dim> dpg_poisson(degree, delta_degree, wavenumber, theta);
+      Step100::DPGHelmholtz<dim> dpg_poisson(degree, delta_degree, wavenumber, theta);
 
-      dpg_poisson.run(degree, delta_degree);
+      dpg_poisson.run();
 
       std::cout << std::endl;
     }
