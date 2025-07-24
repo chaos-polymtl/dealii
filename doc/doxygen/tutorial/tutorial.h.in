@@ -722,7 +722,7 @@
  *       </td></tr>
  *
  *   <tr valign="top">
- *       <td>step-99</td>
+ *       <td>step-100</td>
  *       <td> Application of Discontinuous Petrov-Galerkin method to the solution of the time-harmonic Helholtz equation.
  *       <br/> Keywords: FE_FaceQ, Fe_TraceQ, FE_RaviartThomas, FE_DGQ
  *       </td></tr>
@@ -982,7 +982,7 @@
  *       step-67,
  *       step-74,
  *       step-82,
- *       step-99
+ *       step-100
  *     </td>
  *   </tr>
  * 
