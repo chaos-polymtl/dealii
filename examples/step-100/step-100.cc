@@ -15,7 +15,8 @@
 
 // @sect3{Include files}
 
-// The DPG method requires a large breadth of element type which are included below:
+// The DPG method requires a large breadth of element type which are included
+// below:
 
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_face.h>
@@ -62,82 +63,25 @@ namespace Step100
   using namespace dealii;
 
 
+  // In the following function declaration, we will create the analytical
+  // solutions of the velocity field ($u$) and the pressure field ($p$) and the
+  // associated boundary values. However, in what follows, we will avoid to use
+  // deal.ii complexe capabilities and only use the complex functions that are
+  // defined in the C++ standard library. Consequently, we will define two
+  // implementation of each functions, one for the real component and one for
+  // the imaginary one.
 
-// TODO --  Note seperate analytical solution into real and imaginary component
-
-//
-
-  // Create analytical solution class for kinematic pressure (p)
+  // Create analytical solution class for kinematic pressure (p).
   template <int dim>
-  class AnalyticalSolution_p : public Function<dim>
+  class AnalyticalSolution_p_real : public Function<dim>
   {
   public:
-    // Overload of the value function
-    virtual std::complex<double> value(const Point<dim>  &p,
-                                       const unsigned int component,
-                                       double             wavenumber,
-                                       double             theta) const;
-  };
-
-  template <int dim>
-  std::complex<double> AnalyticalSolution_p<dim>::value(
-    const Point<dim>                   &p,
-    [[maybe_unused]] const unsigned int component,
-    double                              wavenumber,
-    double                              theta) const
-  {
-    // Imaginary unit
-    std::complex<double> imag(0., 1.);
-
-    return std::exp(-imag * wavenumber *
-                    (p[0] * std::cos(theta) + p[1] * std::sin(theta)));
-  }
-
-  // Create analytical solution class velcity field (u)
-  template <int dim>
-  class AnalyticalSolution_u : public Function<dim>
-  {
-  public:
-    // Overload of the value function
-    virtual std::complex<double> value(const Point<dim>  &p,
-                                       const unsigned int component,
-                                       double             wavenumber,
-                                       double             theta) const;
-  };
-
-  template <int dim>
-  std::complex<double>
-  AnalyticalSolution_u<dim>::value(const Point<dim>  &p,
-                                   const unsigned int component,
-                                   double             wavenumber,
-                                   double             theta) const
-  {
-    // Imaginary unit
-    std::complex<double> imag(0., 1.);
-
-    if (component == 0)
-      return std::cos(theta) *
-             std::exp(-imag * wavenumber *
-                      (p[0] * std::cos(theta) + p[1] * std::sin(theta)));
-    else if (component == 1)
-      return std::sin(theta) *
-             std::exp(-imag * wavenumber *
-                      (p[0] * std::cos(theta) + p[1] * std::sin(theta)));
-    else
-      throw std::runtime_error(
-        "Too much components for the analytical solution");
-  }
-
-  // Create the boundary value functions
-  template <int dim>
-  class BoundaryValues_p_real : public Function<dim>
-  {
-  public:
-    // Constructor
-    BoundaryValues_p_real(const double       wavenumber,
-                          const double       theta,
-                          const unsigned int n_components = 1)
-      : Function<dim>(n_components)
+    // The analytical solution will depend on the wavenumber and the angle
+    // defined for the direction of propagation so we will add them to the
+    // constructor. The pressure is a scalar field, so we only need one
+    // component by default.
+    AnalyticalSolution_p_real(double wavenumber, double theta)
+      : Function<dim>()
       , wavenumber(wavenumber)
       , theta(theta)
     {}
@@ -145,9 +89,159 @@ namespace Step100
                          const unsigned int component) const override;
 
   private:
-    AnalyticalSolution_p<dim> analytical_solution_p;
-    double                    wavenumber;
-    double                    theta;
+    const double wavenumber;
+    const double theta;
+  };
+
+  template <int dim>
+  double AnalyticalSolution_p_real<dim>::value(
+    const Point<dim>                   &p,
+    [[maybe_unused]] const unsigned int component) const
+  {
+    // Imaginary unit
+    std::complex<double> imag(0., 1.);
+
+    return std::exp(-imag * wavenumber *
+                    (p[0] * std::cos(theta) + p[1] * std::sin(theta)))
+      .real();
+  }
+
+  // The same goes for the imaginary part of the analytical solution
+  template <int dim>
+  class AnalyticalSolution_p_imag : public Function<dim>
+  {
+  public:
+    AnalyticalSolution_p_imag(double wavenumber, double theta)
+      : Function<dim>()
+      , wavenumber(wavenumber)
+      , theta(theta)
+    {}
+    virtual double value(const Point<dim>  &p,
+                         const unsigned int component) const override;
+
+  private:
+    const double wavenumber;
+    const double theta;
+  };
+
+  template <int dim>
+  double AnalyticalSolution_p_imag<dim>::value(
+    const Point<dim>                   &p,
+    [[maybe_unused]] const unsigned int component) const
+  {
+    std::complex<double> imag(0., 1.);
+
+    return std::exp(-imag * wavenumber *
+                    (p[0] * std::cos(theta) + p[1] * std::sin(theta)))
+      .imag();
+  }
+
+
+  // Now we create analytical solution class for the velocity field (u)
+  template <int dim>
+  class AnalyticalSolution_u_real : public Function<dim>
+  {
+    // This class is similar to the previous ones but since the velocity field
+    // is a vector, we will need dim component. For our problem of interest, dim
+    // = 2.
+  public:
+    AnalyticalSolution_u_real(double wavenumber, double theta)
+      : Function<dim>(2)
+      , wavenumber(wavenumber)
+      , theta(theta)
+    {}
+    virtual double value(const Point<dim>  &p,
+                         const unsigned int component) const override;
+
+  private:
+    const double wavenumber;
+    const double theta;
+  };
+
+  template <int dim>
+  double
+  AnalyticalSolution_u_real<dim>::value(const Point<dim>  &p,
+                                        const unsigned int component) const
+  {
+    std::complex<double> imag(0., 1.);
+
+    if (component == 0)
+      return (std::cos(theta) *
+              std::exp(-imag * wavenumber *
+                       (p[0] * std::cos(theta) + p[1] * std::sin(theta))))
+        .real();
+    else if (component == 1)
+      return (std::sin(theta) *
+              std::exp(-imag * wavenumber *
+                       (p[0] * std::cos(theta) + p[1] * std::sin(theta))))
+        .real();
+    else
+      throw std::runtime_error(
+        "Too much components for the analytical solution");
+  }
+
+  // The same goes for the imaginary part of the analytical solution of the
+  // velocity field
+  template <int dim>
+  class AnalyticalSolution_u_imag : public Function<dim>
+  {
+  public:
+    AnalyticalSolution_u_imag(double wavenumber, double theta)
+      : Function<dim>(2)
+      , wavenumber(wavenumber)
+      , theta(theta)
+    {}
+    virtual double value(const Point<dim>  &p,
+                         const unsigned int component) const override;
+
+  private:
+    const double wavenumber;
+    const double theta;
+  };
+
+  template <int dim>
+  double
+  AnalyticalSolution_u_imag<dim>::value(const Point<dim>  &p,
+                                        const unsigned int component) const
+  {
+    std::complex<double> imag(0., 1.);
+
+    if (component == 0)
+      return (std::cos(theta) *
+              std::exp(-imag * wavenumber *
+                       (p[0] * std::cos(theta) + p[1] * std::sin(theta))))
+        .imag();
+    else if (component == 1)
+      return (std::sin(theta) *
+              std::exp(-imag * wavenumber *
+                       (p[0] * std::cos(theta) + p[1] * std::sin(theta))))
+        .imag();
+    else
+      throw std::runtime_error(
+        "Too much components for the analytical solution");
+  }
+
+  // Now we will do a similar job for the boundary values functions. The main
+  // difference is that the number of components will now be 4 because those
+  // functions will be applied to our space of skeletons unknowns which are
+  // scalars for the pressure and velocity fields, but also have real and
+  // imaginary parts.
+  template <int dim>
+  class BoundaryValues_p_real : public Function<dim>
+  {
+  public:
+    // Constructor
+    BoundaryValues_p_real(const double wavenumber, const double theta)
+      : Function<dim>(4)
+      , wavenumber(wavenumber)
+      , theta(theta)
+    {}
+    virtual double value(const Point<dim>  &p,
+                         const unsigned int component) const override;
+
+  private:
+    double wavenumber;
+    double theta;
   };
 
   template <int dim>
@@ -155,19 +249,18 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    return analytical_solution_p.value(p, 0, wavenumber, theta).real();
+    std::complex<double> imag(0., 1.);
+
+    return std::exp(-imag * wavenumber * p[1] * std::sin(theta)).real();
   }
 
-  // Create the boundary value functions
   template <int dim>
   class BoundaryValues_p_imag : public Function<dim>
   {
   public:
     // Constructor
-    BoundaryValues_p_imag(const double       wavenumber,
-                          const double       theta,
-                          const unsigned int n_components = 1)
-      : Function<dim>(n_components)
+    BoundaryValues_p_imag(const double wavenumber, const double theta)
+      : Function<dim>(4)
       , wavenumber(wavenumber)
       , theta(theta)
     {}
@@ -175,9 +268,8 @@ namespace Step100
                          const unsigned int component) const override;
 
   private:
-    AnalyticalSolution_p<dim> analytical_solution_p;
-    double                    wavenumber;
-    double                    theta;
+    double wavenumber;
+    double theta;
   };
 
   template <int dim>
@@ -185,18 +277,20 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    return analytical_solution_p.value(p, 0, wavenumber, theta).imag();
+    std::complex<double> imag(0., 1.);
+
+    return std::exp(-imag * wavenumber * p[1] * std::sin(theta)).imag();
   }
 
+  // Lastly, we create the boundary values for the velocity field $\hat{u}_n =
+  // \mathb{u} \cdot n$.
   template <int dim>
   class BoundaryValues_u_real : public Function<dim>
   {
   public:
     // Constructor
-    BoundaryValues_u_real(const double       wavenumber,
-                          const double       theta,
-                          const unsigned int n_components = 1)
-      : Function<dim>(n_components)
+    BoundaryValues_u_real(const double wavenumber, const double theta)
+      : Function<dim>(4)
       , wavenumber(wavenumber)
       , theta(theta)
     {}
@@ -204,9 +298,8 @@ namespace Step100
                          const unsigned int component) const override;
 
   private:
-    AnalyticalSolution_u<dim> analytical_solution_u;
-    double                    wavenumber;
-    double                    theta;
+    double wavenumber;
+    double theta;
   };
 
   template <int dim>
@@ -214,18 +307,18 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    return -1 * analytical_solution_u.value(p, 1, wavenumber, theta).real();
+    std::complex<double> imag(0., 1.);
+    return -1 * (std::sin(theta) *
+                 std::exp(-imag * wavenumber * p[0] * std::cos(theta)))
+                  .real();
   }
-
   template <int dim>
   class BoundaryValues_u_imag : public Function<dim>
   {
   public:
     // Constructor
-    BoundaryValues_u_imag(const double       wavenumber,
-                          const double       theta,
-                          const unsigned int n_components = 1)
-      : Function<dim>(n_components)
+    BoundaryValues_u_imag(const double wavenumber, const double theta)
+      : Function<dim>(4)
       , wavenumber(wavenumber)
       , theta(theta)
     {}
@@ -233,9 +326,8 @@ namespace Step100
                          const unsigned int component) const override;
 
   private:
-    AnalyticalSolution_u<dim> analytical_solution_u;
-    double                    wavenumber;
-    double                    theta;
+    double wavenumber;
+    double theta;
   };
 
   template <int dim>
@@ -243,59 +335,83 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    return -1 * analytical_solution_u.value(p, 1, wavenumber, theta).imag();
+    std::complex<double> imag(0., 1.);
+
+    return -1 * (std::sin(theta) *
+                 std::exp(-imag * wavenumber * p[0] * std::cos(theta)))
+                  .imag();
   }
 
-// @sect3{The <code>DPGHelmholtz</code> class template}
+  // @sect3{The <code>DPGHelmholtz</code> class template}
 
-// TODO -- See how to reference existing classes
+  // TODO -- See how to reference existing classes
 
-// Next let's declare the main class of this program. The structure follows that
-// of usual programs. The main difference lies in the fact that we rely on multiple DOFHandlers and FESystem.
-// The DOFHandlers that we rely on are the following:
-// - The <code>dof_handler_trial_interior</code> is for the unknowns in the interior of the cells
-// - The <code>dof_handler_trial_skeleton</code> is for the unknowns in the skeleton
-// - The <code>dof_handler_test</code> is for the test functions. Although we do not use the unknowns associated with this DOFHandler, it enables us to evaluate the test function we will use in DPG.
-// The same applies for the three FESystem: <code>fe_system_trial_interior</code>, <code>fe_system_trial_skeleton</code> and <code>fe_system_test</code>.
+  // Next let's declare the main class of this program. The structure follows
+  // that of usual programs. The main difference lies in the fact that we rely
+  // on multiple DOFHandler and FESystem. The DOFHandlers that we rely on are
+  // the following:
+  // - The <code>dof_handler_trial_interior</code> is for the unknowns in the
+  // interior of the cells
+  // - The <code>dof_handler_trial_skeleton</code> is for the unknowns in the
+  // skeleton
+  // - The <code>dof_handler_test</code> is for the test functions. Although we
+  // do not use the unknowns associated with this DOFHandler, it enables us to
+  // evaluate the test function we will use in DPG.
+  // The same applies for the
+  // three FESystem: <code>fe_system_trial_interior</code>,
+  // <code>fe_system_trial_skeleton</code> and <code>fe_system_test</code>.
 
-// TODO -- Explain in which order we will store each variable.
+  // TODO -- Explain in which order we will store each variable.
 
   template <int dim>
   class DPGHelmholtz
   {
   public:
-
     // TODO -- Add assertion that delta_degree > 0
     // TODO -- Bounds for the theta.
 
-// The constructor takes as an argument the degree of the trial space as well as the delta degree between the trial space and the test space which is necesasry to constructor the DPG problem.
-    // The <code>delta_degree</code> must be at least 1 to ensure that the DPG method is functional. The parameter <code>theta</code> determines the angle of the incident plane wave. The angle must between $0$ and $\frac{\pi}{2}$
+    // The constructor takes as an argument the degree of the trial space as
+    // well as the delta degree between the trial space and the test space which
+    // is necesasry to constructor the DPG problem. The
+    // <code>delta_degree</code> must be at least 1 to ensure that the DPG
+    // method is functional. The parameter <code>theta</code> determines the
+    // angle of the incident plane wave. The angle must between $0$ and
+    // $\frac{\pi}{2}$
 
     DPGHelmholtz(unsigned int degree,
-        unsigned int delta_degree,
-        double       wavenumber,
-        double             theta);
+                 unsigned int delta_degree,
+                 double       wavenumber,
+                 double       theta);
     void run();
 
   private:
-
-    // The setup_system function initializes the three DoFHandlers, the system matrix and right-hand side and establishes the boundary conditions that rely on constraints.
+    // The setup_system function initializes the three DoFHandlers, the system
+    // matrix and right-hand side and establishes the boundary conditions that
+    // rely on constraints.
 
     void setup_system();
 
-// The assemble_system assembles both the right-hand side and the system matrix. This function is used twice per resolution and it has two functions.
-    // - When <code>solve_interior = false</code> the system is assembled and is locally condensed such that the resulting system only contains the skeleton uknowns. This is achieved by local condensation.
-    // - When <code>solve_interior = true</code> the system is assembled and the skeleton degrees of freedom are used to reconstruct the interior solution.
+    // The assemble_system assembles both the right-hand side and the system
+    // matrix. This function is used twice per resolution and it has two
+    // functions.
+    // - When <code>solve_interior = false</code> the system is assembled and is
+    // locally condensed such that the resulting system only contains the
+    // skeleton uknowns. This is achieved by local condensation.
+    // - When <code>solve_interior = true</code> the system is assembled and the
+    // skeleton degrees of freedom are used to reconstruct the interior
+    // solution.
 
     void assemble_system(bool solve_interior = false);
 
-    // Solves the linear system of equation. This linear system of equation is only for the skeleton unknowns.
+    // Solves the linear system of equation. This linear system of equation is
+    // only for the skeleton unknowns.
     void solve_skeleton();
 
     // Refines the mesh uniformly
     void refine_grid(unsigned int cycle);
 
-    // Write the skeleton and the interior unknowns into two different paraview files.
+    // Write the skeleton and the interior unknowns into two different paraview
+    // files.
     void output_results(unsigned int cycle);
 
     // Calculates the $L^2$ norm of the error using the analytical solution.
@@ -309,10 +425,10 @@ namespace Step100
     Vector<double>      solution_interior;
 
     // Variables for the skeleton and, consequently, the system
-    const FESystem<dim> fe_trial_skeleton;
-    DoFHandler<dim>     dof_handler_trial_skeleton;
-    Vector<double>      solution_skeleton;
-    Vector<double>      system_rhs;
+    const FESystem<dim>       fe_trial_skeleton;
+    DoFHandler<dim>           dof_handler_trial_skeleton;
+    Vector<double>            solution_skeleton;
+    Vector<double>            system_rhs;
     SparsityPattern           sparsity_pattern;
     SparseMatrix<double>      system_matrix;
     AffineConstraints<double> constraints;
@@ -337,10 +453,6 @@ namespace Step100
     std::vector<double> error_L2_norm_scalar_hat_imag;
     std::vector<double> h_size;
 
-    // Analytical solution
-    AnalyticalSolution_p<dim> analytical_solution_p;
-    AnalyticalSolution_u<dim> analytical_solution_u;
-
     // Coefficient which are used to define the problem
     const double wavenumber;
     const double theta;
@@ -352,9 +464,9 @@ namespace Step100
 
   template <int dim>
   DPGHelmholtz<dim>::DPGHelmholtz(const unsigned int degree,
-                const unsigned int delta_degree,
-                double             wavenumber,
-                double             theta)
+                                  const unsigned int delta_degree,
+                                  double             wavenumber,
+                                  double             theta)
     : fe_trial_interior(FE_DGQ<dim>(degree) ^ dim,
                         FE_DGQ<dim>(degree) ^ dim,
                         FE_DGQ<dim>(degree),
@@ -378,7 +490,9 @@ namespace Step100
   {}
 
   // @sect3{DPG::setup_system}
-  // This function is similar to the other examples. The main difference lies in the fact that we need to setup multiple DOFHandlers for the interior, the skeleton and the test space.
+  // This function is similar to the other examples. The main difference lies in
+  // the fact that we need to setup multiple DOFHandlers for the interior, the
+  // skeleton and the test space.
   template <int dim>
   void DPGHelmholtz<dim>::setup_system()
   {
@@ -386,7 +500,8 @@ namespace Step100
     dof_handler_trial_interior.distribute_dofs(fe_trial_interior);
     dof_handler_test.distribute_dofs(fe_test);
 
-    // We print the number of degree of freedoms for each of the DoFHandler as well as the total number of degree of freedoms.
+    // We print the number of degree of freedoms for each of the DoFHandler as
+    // well as the total number of degree of freedoms.
 
     std::cout << "Number of degrees of freedom on the interior: "
               << dof_handler_trial_interior.n_dofs() << std::endl;
@@ -409,22 +524,27 @@ namespace Step100
                                             constraints);
 
 
-    // We need to specify different boundary conditions for the four unknowns on the faces.
+    // We need to specify different boundary conditions for the four unknowns on
+    // the faces.
 
-    // First, we define FeValuesExtractor to explicitly which component is related to which variable.
+    // First, we define FeValuesExtractor to explicitly which component is
+    // related to which variable.
     const FEValuesExtractors::Scalar face_u_real(0);
     const FEValuesExtractors::Scalar face_u_imag(1);
     const FEValuesExtractors::Scalar face_p_real(2);
     const FEValuesExtractors::Scalar face_p_imag(3);
 
-    // We instantiate the functions that are used to establish the four boundary conditions
-    BoundaryValues_p_real<dim> p_real(wavenumber, theta, 4);
-    BoundaryValues_p_imag<dim> p_imag(wavenumber, theta, 4);
-    BoundaryValues_u_real<dim> u_real(wavenumber, theta, 4);
-    BoundaryValues_u_imag<dim> u_imag(wavenumber, theta, 4);
+    // We instantiate the functions that are used to establish the four boundary
+    // conditions
+    BoundaryValues_p_real<dim> p_real(wavenumber, theta);
+    BoundaryValues_p_imag<dim> p_imag(wavenumber, theta);
+    BoundaryValues_u_real<dim> u_real(wavenumber, theta);
+    BoundaryValues_u_imag<dim> u_imag(wavenumber, theta);
 
-    // Using the functions and teh FeValuesExtractor, we impose the four different constraints.
-    // TODO -- Explain why you have these two boundary conditions and relate to the problem statement.
+    // Using the functions and teh FeValuesExtractor, we impose the four
+    // different constraints.
+    // TODO -- Explain why you have these two boundary conditions and relate to
+    // the problem statement.
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              0,
                                              p_real,
@@ -452,7 +572,8 @@ namespace Step100
                                                face_u_imag));
     constraints.close();
 
-    // The linear system that we form is only related to the skeleton unknowns. We initialize all the necessary variables.
+    // The linear system that we form is only related to the skeleton unknowns.
+    // We initialize all the necessary variables.
     solution_skeleton.reinit(dof_handler_trial_skeleton.n_dofs());
     system_rhs.reinit(dof_handler_trial_skeleton.n_dofs());
     solution_interior.reinit(dof_handler_trial_interior.n_dofs());
@@ -552,8 +673,8 @@ namespace Step100
                                       dofs_per_cell_trial_skeleton);
 
     // We create the DPG local vectors
-    Vector<double>           g_vector(dofs_per_cell_trial_skeleton);
-    Vector<double>           l_vector(dofs_per_cell_test);
+    Vector<double> g_vector(dofs_per_cell_trial_skeleton);
+    Vector<double> l_vector(dofs_per_cell_test);
 
     // We create the condensation matrices
     LAPACKFullMatrix<double> M1_matrix(dofs_per_cell_trial_interior,
@@ -567,7 +688,8 @@ namespace Step100
     LAPACKFullMatrix<double> M5_matrix(dofs_per_cell_trial_skeleton,
                                        dofs_per_cell_test);
 
-    // During the calculation, we require intermediary matrices that we allocate here.
+    // During the calculation, we require intermediary matrices that we allocate
+    // here.
     LAPACKFullMatrix<double> tmp_matrix(dofs_per_cell_trial_skeleton,
                                         dofs_per_cell_trial_interior);
 
@@ -580,18 +702,21 @@ namespace Step100
     // We also require a temporary condensation vector.
     Vector<double> tmp_vector(dofs_per_cell_trial_interior);
 
-    // We create the matrix and the rhs that will be distributed in the full system
+    // We create the matrix and the rhs that will be distributed in the full
+    // system
     FullMatrix<double> cell_matrix(dofs_per_cell_trial_skeleton,
                                    dofs_per_cell_trial_skeleton);
     Vector<double>     cell_skeleton_rhs(dofs_per_cell_trial_skeleton);
 
-    // Finally, when reconstructing the interior solution from the skeleton, we require additional vectors that we allocate here.
-    Vector<double>     cell_interior_rhs(dofs_per_cell_trial_interior);
-    Vector<double>     cell_interior_solution(dofs_per_cell_trial_interior);
-    Vector<double>     cell_skeleton_solution(dofs_per_cell_trial_skeleton);
+    // Finally, when reconstructing the interior solution from the skeleton, we
+    // require additional vectors that we allocate here.
+    Vector<double> cell_interior_rhs(dofs_per_cell_trial_interior);
+    Vector<double> cell_interior_solution(dofs_per_cell_trial_interior);
+    Vector<double> cell_skeleton_solution(dofs_per_cell_trial_skeleton);
 
     // Create the dofs indices mapping container
-    // We recall that the final unknowns of the system are the skeleton unknowns.
+    // We recall that the final unknowns of the system are the skeleton
+    // unknowns.
     std::vector<types::global_dof_index> local_dof_indices(
       dofs_per_cell_trial_skeleton);
 
@@ -608,25 +733,25 @@ namespace Step100
           cell->as_dof_handler_iterator(dof_handler_trial_interior);
         fe_values_trial_interior.reinit(cell_interior);
 
-      // TODO -- Check which one do not need to be = 0 s
+        // TODO -- Check which one do not need to be = 0 s
         // Reinitialization of the matrices to zero.
-        G_matrix=0;
-        B_matrix=0;
-        B_hat_matrix=0;
-        D_matrix=0;
-        g_vector=0;
-        l_vector=0;
-        M1_matrix=0;
-        M2_matrix=0;
-        M3_matrix=0;
-        M4_matrix=0;
-        M5_matrix=0;
+        G_matrix     = 0;
+        B_matrix     = 0;
+        B_hat_matrix = 0;
+        D_matrix     = 0;
+        g_vector     = 0;
+        l_vector     = 0;
+        M1_matrix    = 0;
+        M2_matrix    = 0;
+        M3_matrix    = 0;
+        M4_matrix    = 0;
+        M5_matrix    = 0;
 
         // Loop over all quadrature points
         for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
-          // TODO -- Check if complex is the right thing to use
-          // Explain why you need the std::complex for the local calculation.
+            // TODO -- Check if complex is the right thing to use
+            // Explain why you need the std::complex for the local calculation.
             const std::complex<double> iomega      = imag * wavenumber;
             const std::complex<double> conj_iomega = conj(iomega);
             const double &JxW = fe_values_trial_interior.JxW(q_point);
@@ -696,8 +821,7 @@ namespace Step100
                         // (v,v*) + (div(v),div(v)*) + (i omega v, (i
                         // omega v)*)
                         G_matrix(i, j) +=
-                          (((v_j * v_i_conj) +
-                            (v_j_div * v_i_div_conj) +
+                          (((v_j * v_i_conj) + (v_j_div * v_i_div_conj) +
                             (conj_iomega * v_j * iomega * v_i_conj)) *
                            JxW)
                             .real();
@@ -1189,12 +1313,11 @@ namespace Step100
 
             // Map to global matrix
             cell_skeleton->get_dof_indices(local_dof_indices);
-            constraints.distribute_local_to_global(
-              cell_matrix,
-              cell_skeleton_rhs,
-              local_dof_indices,
-              system_matrix,
-              system_rhs);
+            constraints.distribute_local_to_global(cell_matrix,
+                                                   cell_skeleton_rhs,
+                                                   local_dof_indices,
+                                                   system_matrix,
+                                                   system_rhs);
           }
       }
   }
@@ -1204,8 +1327,7 @@ namespace Step100
   void DPGHelmholtz<dim>::solve_skeleton()
   {
     // Iterative solver
-    SolverControl            solver_control(1000000,
-                                 1e-10 * system_rhs.l2_norm());
+    SolverControl solver_control(1000000, 1e-10 * system_rhs.l2_norm());
     SolverCG<Vector<double>> solver(solver_control);
     solver.solve(system_matrix,
                  solution_skeleton,
@@ -1317,7 +1439,8 @@ namespace Step100
 
     // Create a variable to store the analytical solution scalar product with
     // normal
-    std::complex<double> u_hat_n_analytical = 0.;
+    double u_hat_n_analytical_real = 0.;
+    double u_hat_n_analytical_imag = 0.;
 
     // Create an std::vector which will contain all the interpolated
     // values at the quadrature points
@@ -1342,6 +1465,16 @@ namespace Step100
     const FEValuesExtractors::Scalar trial_face_u_imag(1);
     const FEValuesExtractors::Scalar trial_face_p(2);
     const FEValuesExtractors::Scalar trial_face_p_imag(3);
+
+    // Create the functions for the analytical solution
+    AnalyticalSolution_p_real<dim> analytical_solution_p_real(wavenumber,
+                                                              theta);
+    AnalyticalSolution_p_imag<dim> analytical_solution_p_imag(wavenumber,
+                                                              theta);
+    AnalyticalSolution_u_real<dim> analytical_solution_u_real(wavenumber,
+                                                              theta);
+    AnalyticalSolution_u_imag<dim> analytical_solution_u_imag(wavenumber,
+                                                              theta);
 
     // Now we loop over all the cells
     for (const auto &cell : dof_handler_trial_interior.active_cell_iterators())
@@ -1376,31 +1509,25 @@ namespace Step100
               {
                 L2_error_flux_real +=
                   pow((local_flux_values_real[q_index][i] -
-                       analytical_solution_u
-                         .value(position, i, wavenumber, theta)
-                         .real()),
+                       analytical_solution_u_real.value(position, i)),
                       2) *
                   JxW;
                 L2_error_flux_imag +=
                   pow((local_flux_values_imag[q_index][i] -
-                       analytical_solution_u
-                         .value(position, i, wavenumber, theta)
-                         .imag()),
+                       analytical_solution_u_imag.value(position, i)),
                       2) *
                   JxW;
               }
             // Calculate the L2 error for p
             L2_error_scalar_real +=
               pow((local_field_values_real[q_index] -
-                   analytical_solution_p.value(position, 0, wavenumber, theta)
-                     .real()),
+                   analytical_solution_p_real.value(position, 0)),
                   2) *
               JxW;
 
             L2_error_scalar_imag +=
               pow((local_field_values_imag[q_index] -
-                   analytical_solution_p.value(position, 0, wavenumber, theta)
-                     .imag()),
+                   analytical_solution_p_imag.value(position, 0)),
                   2) *
               JxW;
           }
@@ -1454,40 +1581,36 @@ namespace Step100
                   }
 
                 // Calculate the L2 error for u_n_hat
-                u_hat_n_analytical = 0.;
+                u_hat_n_analytical_real = 0.;
+                u_hat_n_analytical_imag = 0.;
                 for (unsigned int i = 0; i < dim; ++i)
                   {
-                    u_hat_n_analytical +=
-                      normal[i] * analytical_solution_u.value(position,
-                                                              i,
-                                                              wavenumber,
-                                                              theta);
+                    u_hat_n_analytical_real +=
+                      normal[i] * analytical_solution_u_real.value(position, i);
+                    u_hat_n_analytical_imag +=
+                      normal[i] * analytical_solution_u_imag.value(position, i);
                   }
 
                 L2_error_flux_hat_real +=
                   pow(abs(local_face_flux_values_real[q_index]) -
-                        abs(u_hat_n_analytical.real()),
+                        abs(u_hat_n_analytical_real),
                       2) *
                   JxW;
                 L2_error_flux_hat_imag +=
                   pow(abs(local_face_flux_values_imag[q_index]) -
-                        abs(u_hat_n_analytical.imag()),
+                        abs(u_hat_n_analytical_imag),
                       2) *
                   JxW;
 
                 // Calculate the L2 error for p_hat
                 L2_error_scalar_hat_real +=
                   pow((local_face_field_values_real[q_index] -
-                       analytical_solution_p
-                         .value(position, 0, wavenumber, theta)
-                         .real()),
+                       analytical_solution_p_real.value(position, 0)),
                       2) *
                   JxW;
                 L2_error_scalar_hat_imag +=
                   pow((local_face_field_values_imag[q_index] -
-                       analytical_solution_p
-                         .value(position, 0, wavenumber, theta)
-                         .imag()),
+                       analytical_solution_p_imag.value(position, 0)),
                       2) *
                   JxW;
 
@@ -1635,7 +1758,10 @@ int main()
       double wavenumber = 2 * 2. * M_PI; // N oscillations times 2 pi
       double theta      = M_PI / 4.;     // Angle of incidence in radians
 
-      Step100::DPGHelmholtz<dim> dpg_poisson(degree, delta_degree, wavenumber, theta);
+      Step100::DPGHelmholtz<dim> dpg_poisson(degree,
+                                             delta_degree,
+                                             wavenumber,
+                                             theta);
 
       dpg_poisson.run();
 
