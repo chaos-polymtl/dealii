@@ -26,6 +26,7 @@
 
 // The rest of the includes are some well-known files:
 
+#include <deal.II/base/convergence_table.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/quadrature_lib.h>
 
@@ -344,8 +345,6 @@ namespace Step100
 
   // @sect3{The <code>DPGHelmholtz</code> class template}
 
-  // TODO -- See how to reference existing classes
-
   // Next let's declare the main class of this program. The structure follows
   // that of usual programs. The main difference lies in the fact that we rely
   // on multiple DOFHandler and FESystem. The DOFHandlers that we rely on are
@@ -357,26 +356,27 @@ namespace Step100
   // - The <code>dof_handler_test</code> is for the test functions. Although we
   // do not use the unknowns associated with this DOFHandler, it enables us to
   // evaluate the test function we will use in DPG.
-  // The same applies for the
-  // three FESystem: <code>fe_system_trial_interior</code>,
-  // <code>fe_system_trial_skeleton</code> and <code>fe_system_test</code>.
-
-  // TODO -- Explain in which order we will store each variable.
+  // The same applies for the three FESystem:
+  // <code>fe_system_trial_interior</code>,
+  // <code>fe_system_trial_skeleton</code> and <code>fe_system_test</code>. In
+  // each one of these we will store the relevant finite element space in the
+  // same order to avoid comfusion. The first component will therefore always be
+  // related to the real part of the velocity, the second component to the its
+  // imaginary part, the third component to the real part of the pressure and
+  // the fourth component to its imaginary part.
 
   template <int dim>
   class DPGHelmholtz
   {
   public:
-    // TODO -- Add assertion that delta_degree > 0
-    // TODO -- Bounds for the theta.
-
     // The constructor takes as an argument the degree of the trial space as
     // well as the delta degree between the trial space and the test space which
     // is necesasry to constructor the DPG problem. The
     // <code>delta_degree</code> must be at least 1 to ensure that the DPG
     // method is functional. The parameter <code>theta</code> determines the
     // angle of the incident plane wave. The angle must between $0$ and
-    // $\frac{\pi}{2}$
+    // $\frac{\pi}{2}$ included. Those restrictions are asserted in the
+    // constructor.
 
     DPGHelmholtz(unsigned int degree,
                  unsigned int delta_degree,
@@ -437,25 +437,31 @@ namespace Step100
     const FESystem<dim> fe_test;
     DoFHandler<dim>     dof_handler_test;
 
-
-
-    // TODO -- Replace all the vectors with a single table
-
-    // Container for the L2 error convergence
-    std::vector<double> error_L2_norm;
-    std::vector<double> error_L2_norm_flux_real;
-    std::vector<double> error_L2_norm_flux_imag;
-    std::vector<double> error_L2_norm_scalar_real;
-    std::vector<double> error_L2_norm_scalar_imag;
-    std::vector<double> error_L2_norm_flux_hat_real;
-    std::vector<double> error_L2_norm_flux_hat_imag;
-    std::vector<double> error_L2_norm_scalar_hat_real;
-    std::vector<double> error_L2_norm_scalar_hat_imag;
-    std::vector<double> h_size;
+    // Container for the L2 error and other related quantities
+    ConvergenceTable error_table;
 
     // Coefficient which are used to define the problem
     const double wavenumber;
     const double theta;
+
+    // Define exctractors that will be used at multiple places to select the
+    // relevant components for the calculation. Those can be created at the
+    // class level since they only depend on the FEM problem we want to solve
+    // and how those specific components are defined in the finite element
+    // space. We therefore follow the same nomanclature as described above.
+    const FEValuesExtractors::Vector extractor_u_real;
+    const FEValuesExtractors::Vector extractor_u_imag;
+    const FEValuesExtractors::Scalar extractor_p_real;
+    const FEValuesExtractors::Scalar extractor_p_imag;
+
+    // However, the skeleton space does not have the same number of components
+    // because the space $H^{-1/2}$ related to the velocity field is a scalar
+    // field. Consequently, we define the following extractors for the skeleton
+    // space:
+    const FEValuesExtractors::Scalar extractor_u_hat_real;
+    const FEValuesExtractors::Scalar extractor_u_hat_imag;
+    const FEValuesExtractors::Scalar extractor_p_hat_real;
+    const FEValuesExtractors::Scalar extractor_p_hat_imag;
   };
 
   // @sect3{DPGHelmholtz Constructor}
@@ -487,7 +493,36 @@ namespace Step100
     dof_handler_test(triangulation)
     , wavenumber(wavenumber)
     , theta(theta)
-  {}
+
+    // Here we initialize the FEValuesExtractors that will be used
+    , extractor_u_real(0)
+    , extractor_u_imag(dim)
+    , extractor_p_real(2 * dim)
+    , extractor_p_imag(2 * dim + 1)
+
+    , extractor_u_hat_real(0)
+    , extractor_u_hat_imag(1)
+    , extractor_p_hat_real(2)
+    , extractor_p_hat_imag(3)
+  {
+    // Here we check is everything is correctly defined for our problem to work.
+    // The step is only implemented for the 2D case, so we verify the dimension.
+    AssertDimension(dim, 2);
+
+    // The degree of the test space must be at least one degree higher than the
+    // trial space so the delta_degree variable needs to be at least 1.
+    Assert(delta_degree >= 1,
+           ExcMessage("The delta_degree needs to be at least 1."));
+
+    // The wavenumber is the magnitude of the wave vector and must be positive.
+    Assert(wavenumber > 0, ExcMessage("The wavenumber must be positive."));
+
+    // The angle theta must be in the interval [0, pi/2]. Other angles are
+    // redundant and would not be compatible with the current boundary
+    // definitions.
+    Assert(theta >= 0 && theta <= M_PI / 2,
+           ExcMessage("The angle theta must be in the interval [0, pi/2]."));
+  }
 
   // @sect3{DPG::setup_system}
   // This function is similar to the other examples. The main difference lies in
@@ -501,22 +536,24 @@ namespace Step100
     dof_handler_test.distribute_dofs(fe_test);
 
     // We print the number of degree of freedoms for each of the DoFHandler as
-    // well as the total number of degree of freedoms.
+    // well as adding this information to the ConvergenceTable.
 
-    std::cout << "Number of degrees of freedom on the interior: "
+    std::cout << std::endl
+              << "Number of dofs for the interior: "
               << dof_handler_trial_interior.n_dofs() << std::endl;
 
-    std::cout << "Number of degrees of freedom on the skeleton: "
+    error_table.add_value("dofs_interior", dof_handler_trial_interior.n_dofs());
+
+    std::cout << "Number of dofs for the skeleton: "
               << dof_handler_trial_skeleton.n_dofs() << std::endl;
 
-    std::cout << "Number of degrees of freedom on the test space: "
+    error_table.add_value("dofs_skeleton", dof_handler_trial_skeleton.n_dofs());
+
+    std::cout << "Number of dofs for the test space: "
               << dof_handler_test.n_dofs() << std::endl;
 
-    std::cout << "Total number of degrees of freedom: "
-              << dof_handler_trial_interior.n_dofs() +
-                   dof_handler_trial_skeleton.n_dofs() +
-                   dof_handler_test.n_dofs()
-              << std::endl;
+    error_table.add_value("dofs_test", dof_handler_test.n_dofs());
+
 
     constraints.clear();
 
@@ -527,12 +564,6 @@ namespace Step100
     // We need to specify different boundary conditions for the four unknowns on
     // the faces.
 
-    // First, we define FeValuesExtractor to explicitly which component is
-    // related to which variable.
-    const FEValuesExtractors::Scalar face_u_real(0);
-    const FEValuesExtractors::Scalar face_u_imag(1);
-    const FEValuesExtractors::Scalar face_p_real(2);
-    const FEValuesExtractors::Scalar face_p_imag(3);
 
     // We instantiate the functions that are used to establish the four boundary
     // conditions
@@ -541,7 +572,7 @@ namespace Step100
     BoundaryValues_u_real<dim> u_real(wavenumber, theta);
     BoundaryValues_u_imag<dim> u_imag(wavenumber, theta);
 
-    // Using the functions and teh FeValuesExtractor, we impose the four
+    // Using the functions and th FEValuesExtractors, we impose the four
     // different constraints.
     // TODO -- Explain why you have these two boundary conditions and relate to
     // the problem statement.
@@ -550,26 +581,26 @@ namespace Step100
                                              p_real,
                                              constraints,
                                              fe_trial_skeleton.component_mask(
-                                               face_p_real));
+                                               extractor_p_hat_real));
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              0,
                                              p_imag,
                                              constraints,
                                              fe_trial_skeleton.component_mask(
-                                               face_p_imag));
+                                               extractor_p_hat_imag));
 
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              2,
                                              u_real,
                                              constraints,
                                              fe_trial_skeleton.component_mask(
-                                               face_u_real));
+                                               extractor_u_hat_real));
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              2,
                                              u_imag,
                                              constraints,
                                              fe_trial_skeleton.component_mask(
-                                               face_u_imag));
+                                               extractor_u_hat_imag));
     constraints.close();
 
     // The linear system that we form is only related to the skeleton unknowns.
@@ -594,22 +625,6 @@ namespace Step100
   {
     // Define the imaginary unit
     std::complex<double> imag(0., 1.);
-
-    // Define exctractors
-    const FEValuesExtractors::Vector trial_u(0);
-    const FEValuesExtractors::Vector trial_u_imag(dim);
-    const FEValuesExtractors::Scalar trial_p(2 * dim);
-    const FEValuesExtractors::Scalar trial_p_imag(2 * dim + 1);
-
-    const FEValuesExtractors::Scalar trial_skeleton_u(0);
-    const FEValuesExtractors::Scalar trial_skeleton_u_imag(1);
-    const FEValuesExtractors::Scalar trial_skeleton_p(2);
-    const FEValuesExtractors::Scalar trial_skeleton_p_imag(3);
-
-    const FEValuesExtractors::Vector test_u(0);
-    const FEValuesExtractors::Vector test_u_imag(dim);
-    const FEValuesExtractors::Scalar test_p(2 * dim);
-    const FEValuesExtractors::Scalar test_p_imag(2 * dim + 1);
 
     // Define quadrature rules and related variables
     const QGauss<dim> quadrature_formula(
@@ -644,23 +659,13 @@ namespace Step100
                                           update_values |
                                             update_quadrature_points);
 
+
     // Get number of dofs for each type of element
     const unsigned int dofs_per_cell_test = fe_test.n_dofs_per_cell();
     const unsigned int dofs_per_cell_trial_interior =
       fe_trial_interior.n_dofs_per_cell();
     const unsigned int dofs_per_cell_trial_skeleton =
       fe_trial_skeleton.n_dofs_per_cell();
-
-    if (!solve_interior)
-      {
-        std::cout << "Number of dofs per cell test total: "
-                  << dofs_per_cell_test << std::endl;
-        std::cout << "Number of dofs per cell trial skeleton: "
-                  << dofs_per_cell_trial_skeleton << std::endl;
-        std::cout << "Number of dofs per cell trial interior: "
-                  << dofs_per_cell_trial_interior << std::endl;
-      }
-
 
     // First we create the system before condensation
     // We create the DPG local matrices
@@ -733,7 +738,6 @@ namespace Step100
           cell->as_dof_handler_iterator(dof_handler_trial_interior);
         fe_values_trial_interior.reinit(cell_interior);
 
-        // TODO -- Check which one do not need to be = 0 s
         // Reinitialization of the matrices to zero.
         G_matrix     = 0;
         B_matrix     = 0;
@@ -761,20 +765,21 @@ namespace Step100
               {
                 // Define the necessary complex test basis functions
                 const auto v_i_conj =
-                  fe_values_test[test_u].value(i, q_point) -
-                  imag * fe_values_test[test_u_imag].value(i, q_point);
+                  fe_values_test[extractor_u_real].value(i, q_point) -
+                  imag * fe_values_test[extractor_u_imag].value(i, q_point);
 
                 const auto v_i_div_conj =
-                  fe_values_test[test_u].divergence(i, q_point) -
-                  imag * fe_values_test[test_u_imag].divergence(i, q_point);
+                  fe_values_test[extractor_u_real].divergence(i, q_point) -
+                  imag *
+                    fe_values_test[extractor_u_imag].divergence(i, q_point);
 
                 const auto q_i_conj =
-                  fe_values_test[test_p].value(i, q_point) -
-                  imag * fe_values_test[test_p_imag].value(i, q_point);
+                  fe_values_test[extractor_p_real].value(i, q_point) -
+                  imag * fe_values_test[extractor_p_imag].value(i, q_point);
 
                 const auto q_i_grad_conj =
-                  fe_values_test[test_p].gradient(i, q_point) -
-                  imag * fe_values_test[test_p_imag].gradient(i, q_point);
+                  fe_values_test[extractor_p_real].gradient(i, q_point) -
+                  imag * fe_values_test[extractor_p_imag].gradient(i, q_point);
 
                 // Get the information on witch element the dof is
                 const unsigned int current_element_test_i =
@@ -793,20 +798,22 @@ namespace Step100
                   {
                     // Create the test basis functions
                     const auto v_j =
-                      fe_values_test[test_u].value(j, q_point) +
-                      imag * fe_values_test[test_u_imag].value(j, q_point);
+                      fe_values_test[extractor_u_real].value(j, q_point) +
+                      imag * fe_values_test[extractor_u_imag].value(j, q_point);
 
                     const auto v_j_div =
-                      fe_values_test[test_u].divergence(j, q_point) +
-                      imag * fe_values_test[test_u_imag].divergence(j, q_point);
+                      fe_values_test[extractor_u_real].divergence(j, q_point) +
+                      imag *
+                        fe_values_test[extractor_u_imag].divergence(j, q_point);
 
                     const auto q_j =
-                      fe_values_test[test_p].value(j, q_point) +
-                      imag * fe_values_test[test_p_imag].value(j, q_point);
+                      fe_values_test[extractor_p_real].value(j, q_point) +
+                      imag * fe_values_test[extractor_p_imag].value(j, q_point);
 
                     const auto q_j_grad =
-                      fe_values_test[test_p].gradient(j, q_point) +
-                      imag * fe_values_test[test_p_imag].gradient(j, q_point);
+                      fe_values_test[extractor_p_real].gradient(j, q_point) +
+                      imag *
+                        fe_values_test[extractor_p_imag].gradient(j, q_point);
 
                     // Get the information on witch element the dof is
                     const unsigned int current_element_test_j =
@@ -873,16 +880,16 @@ namespace Step100
                   {
                     // Create the trial basis functions
                     const auto u_j =
-                      fe_values_trial_interior[trial_u].value(j, q_point) +
-                      imag *
-                        fe_values_trial_interior[trial_u_imag].value(j,
-                                                                     q_point);
+                      fe_values_trial_interior[extractor_u_real].value(
+                        j, q_point) +
+                      imag * fe_values_trial_interior[extractor_u_imag].value(
+                               j, q_point);
 
                     const auto p_j =
-                      fe_values_trial_interior[trial_p].value(j, q_point) +
-                      imag *
-                        fe_values_trial_interior[trial_p_imag].value(j,
-                                                                     q_point);
+                      fe_values_trial_interior[extractor_p_real].value(
+                        j, q_point) +
+                      imag * fe_values_trial_interior[extractor_p_imag].value(
+                               j, q_point);
 
                     // Get the information to map the index to the right shape
                     // function
@@ -955,13 +962,15 @@ namespace Step100
                     // Create the face test basis functions
                     const auto v_n_i_conj =
                       normal *
-                      (fe_face_values_test[test_u].value(i, q_point) -
+                      (fe_face_values_test[extractor_u_real].value(i, q_point) -
                        imag *
-                         fe_face_values_test[test_u_imag].value(i, q_point));
+                         fe_face_values_test[extractor_u_imag].value(i,
+                                                                     q_point));
 
                     const auto q_i_conj =
-                      fe_face_values_test[test_p].value(i, q_point) -
-                      imag * fe_face_values_test[test_p_imag].value(i, q_point);
+                      fe_face_values_test[extractor_p_real].value(i, q_point) -
+                      imag *
+                        fe_face_values_test[extractor_p_imag].value(i, q_point);
 
                     // Get the information to map the index to the right shape
                     // function
@@ -973,15 +982,15 @@ namespace Step100
                       {
                         // Create the face trial basis functions
                         const auto u_hat_n_j =
-                          fe_values_trial_skeleton[trial_skeleton_u].value(
+                          fe_values_trial_skeleton[extractor_u_hat_real].value(
                             j, q_point) +
-                          imag * fe_values_trial_skeleton[trial_skeleton_u_imag]
+                          imag * fe_values_trial_skeleton[extractor_u_hat_imag]
                                    .value(j, q_point);
 
                         const auto p_hat_j =
-                          fe_values_trial_skeleton[trial_skeleton_p].value(
+                          fe_values_trial_skeleton[extractor_p_hat_real].value(
                             j, q_point) +
-                          imag * fe_values_trial_skeleton[trial_skeleton_p_imag]
+                          imag * fe_values_trial_skeleton[extractor_p_hat_imag]
                                    .value(j, q_point);
 
                         // Get the information to map the index to the right
@@ -1072,16 +1081,16 @@ namespace Step100
                       {
                         // Create the face test basis functions
                         const auto v_n_i_conj =
-                          normal *
-                          (fe_face_values_test[test_u].value(i, q_point) -
-                           imag *
-                             fe_face_values_test[test_u_imag].value(i,
-                                                                    q_point));
+                          normal * (fe_face_values_test[extractor_u_real].value(
+                                      i, q_point) -
+                                    imag * fe_face_values_test[extractor_u_imag]
+                                             .value(i, q_point));
 
                         const auto q_i_conj =
-                          fe_face_values_test[test_p].value(i, q_point) -
-                          imag *
-                            fe_face_values_test[test_p_imag].value(i, q_point);
+                          fe_face_values_test[extractor_p_real].value(i,
+                                                                      q_point) -
+                          imag * fe_face_values_test[extractor_p_imag].value(
+                                   i, q_point);
 
                         const unsigned int current_element_test_i =
                           fe_test.system_to_base_index(i).first.first;
@@ -1091,15 +1100,16 @@ namespace Step100
                             // Create the face test basis functions
                             const auto v_n_j =
                               normal *
-                              (fe_face_values_test[test_u].value(j, q_point) +
-                               imag * fe_face_values_test[test_u_imag].value(
-                                        j, q_point));
+                              (fe_face_values_test[extractor_u_real].value(
+                                 j, q_point) +
+                               imag * fe_face_values_test[extractor_u_imag]
+                                        .value(j, q_point));
 
                             const auto q_j =
-                              fe_face_values_test[test_p].value(j, q_point) +
-                              imag *
-                                fe_face_values_test[test_p_imag].value(j,
-                                                                       q_point);
+                              fe_face_values_test[extractor_p_real].value(
+                                j, q_point) +
+                              imag * fe_face_values_test[extractor_p_imag]
+                                       .value(j, q_point);
 
                             const unsigned int current_element_test_j =
                               fe_test.system_to_base_index(j).first.first;
@@ -1151,15 +1161,15 @@ namespace Step100
                       {
                         // Create the face trial basis functions
                         const auto u_hat_n_i_conj =
-                          fe_values_trial_skeleton[trial_skeleton_u].value(
+                          fe_values_trial_skeleton[extractor_u_hat_real].value(
                             i, q_point) -
-                          imag * fe_values_trial_skeleton[trial_skeleton_u_imag]
+                          imag * fe_values_trial_skeleton[extractor_u_hat_imag]
                                    .value(i, q_point);
 
                         const auto p_hat_i_conj =
-                          fe_values_trial_skeleton[trial_skeleton_p].value(
+                          fe_values_trial_skeleton[extractor_p_hat_real].value(
                             i, q_point) -
-                          imag * fe_values_trial_skeleton[trial_skeleton_p_imag]
+                          imag * fe_values_trial_skeleton[extractor_p_hat_imag]
                                    .value(i, q_point);
 
                         // Get the information to map the index to the right
@@ -1187,17 +1197,17 @@ namespace Step100
                           {
                             // Create the face trial basis functions
                             const auto u_hat_n_j =
-                              fe_values_trial_skeleton[trial_skeleton_u].value(
-                                j, q_point) +
+                              fe_values_trial_skeleton[extractor_u_hat_real]
+                                .value(j, q_point) +
                               imag *
-                                fe_values_trial_skeleton[trial_skeleton_u_imag]
+                                fe_values_trial_skeleton[extractor_u_hat_imag]
                                   .value(j, q_point);
 
                             const auto p_hat_j =
-                              fe_values_trial_skeleton[trial_skeleton_p].value(
-                                j, q_point) +
+                              fe_values_trial_skeleton[extractor_p_hat_real]
+                                .value(j, q_point) +
                               imag *
-                                fe_values_trial_skeleton[trial_skeleton_p_imag]
+                                fe_values_trial_skeleton[extractor_p_hat_imag]
                                   .value(j, q_point);
 
                             // Get the information to map the index to the right
@@ -1326,6 +1336,8 @@ namespace Step100
   template <int dim>
   void DPGHelmholtz<dim>::solve_skeleton()
   {
+    std::cout << std::endl << "Solving the DPG system..." << std::endl;
+
     // Iterative solver
     SolverControl solver_control(1000000, 1e-10 * system_rhs.l2_norm());
     SolverCG<Vector<double>> solver(solver_control);
@@ -1336,7 +1348,10 @@ namespace Step100
     constraints.distribute(solution_skeleton);
 
     std::cout << "   " << solver_control.last_step()
-              << " CG iterations needed to obtain convergence." << std::endl;
+              << " CG iterations needed to obtain convergence. \n"
+              << std::endl;
+
+    error_table.add_value("n_iter", solver_control.last_step());
   }
 
   // @sect3{DPG::output_results}
@@ -1426,16 +1441,15 @@ namespace Step100
     const unsigned int n_face_q_points = face_quadrature_formula.size();
 
     // Create a variable to store the integration result
-    double L2_error_scalar_real     = 0;
-    double L2_error_scalar_imag     = 0;
-    double L2_error_scalar_hat_real = 0;
-    double L2_error_scalar_hat_imag = 0;
-    double L2_error_flux_real       = 0;
-    double L2_error_flux_imag       = 0;
-    double L2_error_flux_hat_real   = 0;
-    double L2_error_flux_hat_imag   = 0;
-    double L2_error                 = 0;
-    double mesh_skeleton_area       = 0;
+    double L2_error_p_real     = 0;
+    double L2_error_p_imag     = 0;
+    double L2_error_p_hat_real = 0;
+    double L2_error_p_hat_imag = 0;
+    double L2_error_u_real     = 0;
+    double L2_error_u_imag     = 0;
+    double L2_error_u_hat_real = 0;
+    double L2_error_u_hat_imag = 0;
+    double mesh_skeleton_area  = 0;
 
     // Create a variable to store the analytical solution scalar product with
     // normal
@@ -1444,27 +1458,15 @@ namespace Step100
 
     // Create an std::vector which will contain all the interpolated
     // values at the quadrature points
-    std::vector<Tensor<1, dim>> local_flux_values_real(n_q_points);  // u'
-    std::vector<Tensor<1, dim>> local_flux_values_imag(n_q_points);  // u''
+    std::vector<Tensor<1, dim>> local_u_values_real(n_q_points);     // u'
+    std::vector<Tensor<1, dim>> local_u_values_imag(n_q_points);     // u''
     std::vector<double>         local_field_values_real(n_q_points); // p'
     std::vector<double>         local_field_values_imag(n_q_points); // p''
-    std::vector<double>         local_face_flux_values_real(
-      n_face_q_points); // u_n_hat'
-    std::vector<double> local_face_flux_values_imag(
-      n_face_q_points); // u_n_hat''
+    std::vector<double> local_face_u_values_real(n_face_q_points);   // u_n_hat'
+    std::vector<double> local_face_u_values_imag(n_face_q_points); // u_n_hat''
     std::vector<double> local_face_field_values_real(n_face_q_points); // p_hat'
     std::vector<double> local_face_field_values_imag(
       n_face_q_points); // p_hat''
-
-    // Define extractors
-    const FEValuesExtractors::Vector trial_u(0);
-    const FEValuesExtractors::Vector trial_u_imag(dim);
-    const FEValuesExtractors::Scalar trial_p(2 * dim);
-    const FEValuesExtractors::Scalar trial_p_imag(2 * dim + 1);
-    const FEValuesExtractors::Scalar trial_face_u(0);
-    const FEValuesExtractors::Scalar trial_face_u_imag(1);
-    const FEValuesExtractors::Scalar trial_face_p(2);
-    const FEValuesExtractors::Scalar trial_face_p_imag(3);
 
     // Create the functions for the analytical solution
     AnalyticalSolution_p_real<dim> analytical_solution_p_real(wavenumber,
@@ -1484,13 +1486,13 @@ namespace Step100
         const typename DoFHandler<dim>::active_cell_iterator cell_skeleton =
           cell->as_dof_handler_iterator(dof_handler_trial_skeleton);
 
-        fe_values_trial_interior[trial_u].get_function_values(
-          solution_interior, local_flux_values_real);
-        fe_values_trial_interior[trial_u_imag].get_function_values(
-          solution_interior, local_flux_values_imag);
-        fe_values_trial_interior[trial_p].get_function_values(
+        fe_values_trial_interior[extractor_u_real].get_function_values(
+          solution_interior, local_u_values_real);
+        fe_values_trial_interior[extractor_u_imag].get_function_values(
+          solution_interior, local_u_values_imag);
+        fe_values_trial_interior[extractor_p_real].get_function_values(
           solution_interior, local_field_values_real);
-        fe_values_trial_interior[trial_p_imag].get_function_values(
+        fe_values_trial_interior[extractor_p_imag].get_function_values(
           solution_interior, local_field_values_imag);
 
         // Compute the L2 error
@@ -1507,25 +1509,25 @@ namespace Step100
             // Calculate the L2 error for u
             for (unsigned int i = 0; i < dim; ++i)
               {
-                L2_error_flux_real +=
-                  pow((local_flux_values_real[q_index][i] -
+                L2_error_u_real +=
+                  pow((local_u_values_real[q_index][i] -
                        analytical_solution_u_real.value(position, i)),
                       2) *
                   JxW;
-                L2_error_flux_imag +=
-                  pow((local_flux_values_imag[q_index][i] -
+                L2_error_u_imag +=
+                  pow((local_u_values_imag[q_index][i] -
                        analytical_solution_u_imag.value(position, i)),
                       2) *
                   JxW;
               }
             // Calculate the L2 error for p
-            L2_error_scalar_real +=
+            L2_error_p_real +=
               pow((local_field_values_real[q_index] -
                    analytical_solution_p_real.value(position, 0)),
                   2) *
               JxW;
 
-            L2_error_scalar_imag +=
+            L2_error_p_imag +=
               pow((local_field_values_imag[q_index] -
                    analytical_solution_p_imag.value(position, 0)),
                   2) *
@@ -1540,13 +1542,13 @@ namespace Step100
             const auto face_no = cell_skeleton->face_iterator_to_index(face);
 
             // Extract local solution
-            fe_values_trial_skeleton[trial_face_u].get_function_values(
-              solution_skeleton, local_face_flux_values_real);
-            fe_values_trial_skeleton[trial_face_u_imag].get_function_values(
-              solution_skeleton, local_face_flux_values_imag);
-            fe_values_trial_skeleton[trial_face_p].get_function_values(
+            fe_values_trial_skeleton[extractor_u_hat_real].get_function_values(
+              solution_skeleton, local_face_u_values_real);
+            fe_values_trial_skeleton[extractor_u_hat_imag].get_function_values(
+              solution_skeleton, local_face_u_values_imag);
+            fe_values_trial_skeleton[extractor_p_hat_real].get_function_values(
               solution_skeleton, local_face_field_values_real);
-            fe_values_trial_skeleton[trial_face_p_imag].get_function_values(
+            fe_values_trial_skeleton[extractor_p_hat_imag].get_function_values(
               solution_skeleton, local_face_field_values_imag);
 
             // Compute the L2 error
@@ -1591,24 +1593,24 @@ namespace Step100
                       normal[i] * analytical_solution_u_imag.value(position, i);
                   }
 
-                L2_error_flux_hat_real +=
-                  pow(abs(local_face_flux_values_real[q_index]) -
+                L2_error_u_hat_real +=
+                  pow(abs(local_face_u_values_real[q_index]) -
                         abs(u_hat_n_analytical_real),
                       2) *
                   JxW;
-                L2_error_flux_hat_imag +=
-                  pow(abs(local_face_flux_values_imag[q_index]) -
+                L2_error_u_hat_imag +=
+                  pow(abs(local_face_u_values_imag[q_index]) -
                         abs(u_hat_n_analytical_imag),
                       2) *
                   JxW;
 
                 // Calculate the L2 error for p_hat
-                L2_error_scalar_hat_real +=
+                L2_error_p_hat_real +=
                   pow((local_face_field_values_real[q_index] -
                        analytical_solution_p_real.value(position, 0)),
                       2) *
                   JxW;
-                L2_error_scalar_hat_imag +=
+                L2_error_p_hat_imag +=
                   pow((local_face_field_values_imag[q_index] -
                        analytical_solution_p_imag.value(position, 0)),
                       2) *
@@ -1619,42 +1621,38 @@ namespace Step100
           }
       }
 
-    L2_error = L2_error_scalar_real + L2_error_scalar_imag +
-               L2_error_flux_real + L2_error_flux_imag;
-    L2_error_scalar_hat_real /= mesh_skeleton_area;
-    L2_error_scalar_hat_imag /= mesh_skeleton_area;
-    L2_error_flux_hat_real /= mesh_skeleton_area;
-    L2_error_flux_hat_imag /= mesh_skeleton_area;
+    // Normalize the error by the mesh area
+    L2_error_p_hat_real /= mesh_skeleton_area;
+    L2_error_p_hat_imag /= mesh_skeleton_area;
+    L2_error_u_hat_real /= mesh_skeleton_area;
+    L2_error_u_hat_imag /= mesh_skeleton_area;
 
-    std::cout << "L2 error is : " << std::sqrt(L2_error) << std::endl;
-    std::cout << "L2 pressure real part error is : "
-              << std::sqrt(L2_error_scalar_real) << std::endl;
-    std::cout << "L2 pressure imag part error is : "
-              << std::sqrt(L2_error_scalar_imag) << std::endl;
     std::cout << "L2 velocity real part error is : "
-              << std::sqrt(L2_error_flux_real) << std::endl;
+              << std::sqrt(L2_error_u_real) << std::endl;
     std::cout << "L2 velocity imag part error is : "
-              << std::sqrt(L2_error_flux_imag) << std::endl;
+              << std::sqrt(L2_error_u_imag) << std::endl;
+    std::cout << "L2 pressure real part error is : "
+              << std::sqrt(L2_error_p_real) << std::endl;
+    std::cout << "L2 pressure imag part error is : "
+              << std::sqrt(L2_error_p_imag) << std::endl;
     std::cout << "L2 velocity skeleton real part error is : "
-              << std::sqrt(L2_error_flux_hat_real) << std::endl;
+              << std::sqrt(L2_error_u_hat_real) << std::endl;
     std::cout << "L2 velocity skeleton imag part error is : "
-              << std::sqrt(L2_error_flux_hat_imag) << std::endl;
+              << std::sqrt(L2_error_u_hat_imag) << std::endl;
     std::cout << "L2 pressure skeleton real part error is : "
-              << std::sqrt(L2_error_scalar_hat_real) << std::endl;
+              << std::sqrt(L2_error_p_hat_real) << std::endl;
     std::cout << "L2 presssure skeleton imag part error is : "
-              << std::sqrt(L2_error_scalar_hat_imag) << std::endl;
+              << std::sqrt(L2_error_p_hat_imag) << std::endl;
 
-    error_L2_norm.push_back(std::sqrt(L2_error));
-    error_L2_norm_flux_real.push_back(std::sqrt(L2_error_flux_real));
-    error_L2_norm_flux_imag.push_back(std::sqrt(L2_error_flux_imag));
-    error_L2_norm_scalar_real.push_back(std::sqrt(L2_error_scalar_real));
-    error_L2_norm_scalar_imag.push_back(std::sqrt(L2_error_scalar_imag));
-    error_L2_norm_flux_hat_real.push_back(std::sqrt(L2_error_flux_hat_real));
-    error_L2_norm_flux_hat_imag.push_back(std::sqrt(L2_error_flux_hat_imag));
-    error_L2_norm_scalar_hat_real.push_back(
-      std::sqrt(L2_error_scalar_hat_real));
-    error_L2_norm_scalar_hat_imag.push_back(
-      std::sqrt(L2_error_scalar_hat_imag));
+    // Store the errors in the error table
+    error_table.add_value("eL2_u_r", std::sqrt(L2_error_u_real));
+    error_table.add_value("eL2_u_i", std::sqrt(L2_error_u_imag));
+    error_table.add_value("eL2_p_r", std::sqrt(L2_error_p_real));
+    error_table.add_value("eL2_p_i", std::sqrt(L2_error_p_imag));
+    error_table.add_value("eL2_u_hat_r", std::sqrt(L2_error_u_hat_real));
+    error_table.add_value("eL2_u_hat_i", std::sqrt(L2_error_u_hat_imag));
+    error_table.add_value("eL2_p_hat_r", std::sqrt(L2_error_p_hat_real));
+    error_table.add_value("eL2_p_hat_i", std::sqrt(L2_error_p_hat_imag));
   }
 
   // @sect3{DPG::refine_grid}
@@ -1679,61 +1677,51 @@ namespace Step100
     std::cout << "Number of active cells: " << triangulation.n_active_cells()
               << std::endl;
 
-    h_size.push_back(GridTools::maximal_cell_diameter<dim>(triangulation));
+    error_table.add_value("cycle", cycle);
+    error_table.add_value("n_cells", triangulation.n_active_cells());
+    error_table.add_value("cell_size",
+                          GridTools::maximal_cell_diameter<dim>(triangulation));
   }
 
   // @sect3{DPG::run}
   template <int dim>
   void DPGHelmholtz<dim>::run()
   {
-    for (unsigned int cycle = 0; cycle < 8; ++cycle)
+    for (unsigned int cycle = 0; cycle < 4; ++cycle)
       {
-        std::cout << "Cycle " << cycle << ':' << std::endl;
+        std::cout << "===========================================" << std::endl
+                  << "Cycle " << cycle << ':' << std::endl;
 
-        auto timer_total_start = std::chrono::high_resolution_clock::now();
         refine_grid(cycle);
         setup_system();
-        auto timer_assembly_start = std::chrono::high_resolution_clock::now();
         assemble_system(false);
-        auto timer_assembly_end = std::chrono::high_resolution_clock::now();
-        auto timer_solve_start  = std::chrono::high_resolution_clock::now();
         solve_skeleton();
-        auto timer_solve_end = std::chrono::high_resolution_clock::now();
-        auto timer_solve_interior_start =
-          std::chrono::high_resolution_clock::now();
         assemble_system(true); // Solve the interior problem
-        auto timer_solve_interior_end =
-          std::chrono::high_resolution_clock::now();
         calculate_L2_error();
         output_results(cycle);
-        auto timer_total_end = std::chrono::high_resolution_clock::now();
-
-        // Print to consol the different times
-        std::cout << "----------------------------------------------------"
-                  << std::endl;
-        std::cout << "Total time: "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(
-                       timer_total_end - timer_total_start)
-                       .count()
-                  << std::endl;
-        std::cout << "Assembly time: "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(
-                       timer_assembly_end - timer_assembly_start)
-                       .count()
-                  << std::endl;
-        std::cout << "Solve skeleton time: "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(
-                       timer_solve_end - timer_solve_start)
-                       .count()
-                  << std::endl;
-        std::cout << "Solve interior time: "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(
-                       timer_solve_interior_end - timer_solve_interior_start)
-                       .count()
-                  << std::endl;
-        std::cout << "----------------------------------------------------"
-                  << std::endl;
       }
+
+    // Evaluate convergence rates of interest
+    error_table.evaluate_convergence_rates(
+      "eL2_u_r", "n_cells", ConvergenceTable::reduction_rate_log2);
+    error_table.evaluate_convergence_rates(
+      "eL2_u_i", "n_cells", ConvergenceTable::reduction_rate_log2);
+    error_table.evaluate_convergence_rates(
+      "eL2_p_r", "n_cells", ConvergenceTable::reduction_rate_log2);
+    error_table.evaluate_convergence_rates(
+      "eL2_p_i", "n_cells", ConvergenceTable::reduction_rate_log2);
+    error_table.evaluate_convergence_rates(
+      "eL2_u_hat_r", "n_cells", ConvergenceTable::reduction_rate_log2);
+    error_table.evaluate_convergence_rates(
+      "eL2_u_hat_i", "n_cells", ConvergenceTable::reduction_rate_log2);
+    error_table.evaluate_convergence_rates(
+      "eL2_p_hat_r", "n_cells", ConvergenceTable::reduction_rate_log2);
+    error_table.evaluate_convergence_rates(
+      "eL2_p_hat_i", "n_cells", ConvergenceTable::reduction_rate_log2);
+
+    std::cout << "===========================================" << std::endl;
+    std::cout << "Convergence table:" << std::endl;
+    error_table.write_text(std::cout);
   }
 } // end of namespace Step100
 
@@ -1749,9 +1737,9 @@ int main()
       int degree       = 1;
       int delta_degree = 1;
 
-      std::cout << "Solving with order " << degree
-                << " elements with a test space " << delta_degree
-                << " order higher." << std::endl
+      std::cout << "===========================================" << std::endl
+                << "Trial order: " << degree << std::endl
+                << "Test order: " << delta_degree + degree << std::endl
                 << "===========================================" << std::endl
                 << std::endl;
 
