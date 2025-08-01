@@ -100,7 +100,7 @@ namespace Step100
     [[maybe_unused]] const unsigned int component) const
   {
     // Imaginary unit
-    std::complex<double> imag(0., 1.);
+    constexpr std::complex<double> imag(0., 1.);
 
     return std::exp(-imag * wavenumber *
                     (p[0] * std::cos(theta) + p[1] * std::sin(theta)))
@@ -130,7 +130,7 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    std::complex<double> imag(0., 1.);
+    constexpr std::complex<double> imag(0., 1.);
 
     return std::exp(-imag * wavenumber *
                     (p[0] * std::cos(theta) + p[1] * std::sin(theta)))
@@ -164,7 +164,7 @@ namespace Step100
   AnalyticalSolution_u_real<dim>::value(const Point<dim>  &p,
                                         const unsigned int component) const
   {
-    std::complex<double> imag(0., 1.);
+    constexpr std::complex<double> imag(0., 1.);
 
     if (component == 0)
       return (std::cos(theta) *
@@ -205,7 +205,7 @@ namespace Step100
   AnalyticalSolution_u_imag<dim>::value(const Point<dim>  &p,
                                         const unsigned int component) const
   {
-    std::complex<double> imag(0., 1.);
+    constexpr std::complex<double> imag(0., 1.);
 
     if (component == 0)
       return (std::cos(theta) *
@@ -250,7 +250,7 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    std::complex<double> imag(0., 1.);
+    constexpr std::complex<double> imag(0., 1.);
 
     return std::exp(-imag * wavenumber * p[1] * std::sin(theta)).real();
   }
@@ -278,7 +278,7 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    std::complex<double> imag(0., 1.);
+    constexpr std::complex<double> imag(0., 1.);
 
     return std::exp(-imag * wavenumber * p[1] * std::sin(theta)).imag();
   }
@@ -308,7 +308,7 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    std::complex<double> imag(0., 1.);
+    constexpr std::complex<double> imag(0., 1.);
     return -1 * (std::sin(theta) *
                  std::exp(-imag * wavenumber * p[0] * std::cos(theta)))
                   .real();
@@ -336,7 +336,7 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    std::complex<double> imag(0., 1.);
+    constexpr std::complex<double> imag(0., 1.);
 
     return -1 * (std::sin(theta) *
                  std::exp(-imag * wavenumber * p[0] * std::cos(theta)))
@@ -562,20 +562,17 @@ namespace Step100
 
 
     // We need to specify different boundary conditions for the four unknowns on
-    // the faces.
-
-
-    // We instantiate the functions that are used to establish the four boundary
-    // conditions
+    // the faces. Therefore, we instantiate the functions that are used to
+    // establish these boundary conditions.
     BoundaryValues_p_real<dim> p_real(wavenumber, theta);
     BoundaryValues_p_imag<dim> p_imag(wavenumber, theta);
     BoundaryValues_u_real<dim> u_real(wavenumber, theta);
     BoundaryValues_u_imag<dim> u_imag(wavenumber, theta);
 
-    // Using the functions and th FEValuesExtractors, we impose the four
-    // different constraints.
-    // TODO -- Explain why you have these two boundary conditions and relate to
-    // the problem statement.
+    // Using the functions and the FEValuesExtractors, we impose the four
+    // different constraints. As stated in the problem description, we first
+    // impose a Dirichlet boundary condition on the pressure field for the left
+    // boundary (id=0).
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              0,
                                              p_real,
@@ -589,6 +586,9 @@ namespace Step100
                                              fe_trial_skeleton.component_mask(
                                                extractor_p_hat_imag));
 
+    // Then we impose a Neumann boundary condition on pressure by applying a
+    // Dirichlet on the pressure "flux", which is the normal velocity field on
+    // the bottom boundary (id=2).
     VectorTools::interpolate_boundary_values(dof_handler_trial_skeleton,
                                              2,
                                              u_real,
@@ -623,9 +623,6 @@ namespace Step100
   template <int dim>
   void DPGHelmholtz<dim>::assemble_system(const bool solve_interior)
   {
-    // Define the imaginary unit
-    std::complex<double> imag(0., 1.);
-
     // Define quadrature rules and related variables
     const QGauss<dim> quadrature_formula(
       fe_test.degree +
@@ -681,6 +678,12 @@ namespace Step100
     Vector<double> g_vector(dofs_per_cell_trial_skeleton);
     Vector<double> l_vector(dofs_per_cell_test);
 
+    // When building the different matrices, we will need the shapes functions
+    // values, gradient and divergence at the quadrature points for the trial
+    // and test spaces. To avoid the query of the FEValues at each quadrature
+    // point, we will use containers that will store the desired values before
+    // hand.
+
     // We create the condensation matrices
     LAPACKFullMatrix<double> M1_matrix(dofs_per_cell_trial_interior,
                                        dofs_per_cell_trial_interior);
@@ -725,39 +728,55 @@ namespace Step100
     std::vector<types::global_dof_index> local_dof_indices(
       dofs_per_cell_trial_skeleton);
 
-    // Loop over all cells
-    for (const auto &cell : dof_handler_test.active_cell_iterators())
-      {
-        // Reinitialization
-        fe_values_test.reinit(cell);
+    // We also define the imaginary unit and two complex constant that will be
+    // used during the following assembly. Note that even if the system and
+    // matrix that we build are real, we still make use of the standard library
+    // complex operation to facilitate some computations as it is done in
+    // step-81.
+    constexpr std::complex<double> imag(0., 1.);
+    const std::complex<double>     iomega      = imag * wavenumber;
+    const std::complex<double>     conj_iomega = conj(iomega);
 
+    // We first loop over the cells of the triangulation. We will choose to loop
+    // on using the DofHandler of the trial space because it is the natural
+    // choice since it is where we will compute our the solution.
+    for (const auto &cell : dof_handler_trial_interior.active_cell_iterators())
+      {
+        // We first reinitialize the FEValues objects to the current cell.
+        fe_values_trial_interior.reinit(cell);
+
+        // However, we will also need to reinitialize the FEValues for the test
+        // space and make sure that is the same cell as used for the trial
+        // space.
+        const typename DoFHandler<dim>::active_cell_iterator cell_test =
+          cell->as_dof_handler_iterator(dof_handler_test);
+        fe_values_test.reinit(cell_test);
+
+        // Similarly, we reinitialize the FEValues for the trial space on the
+        // skeleton, but this will not be used before we also loop on the cells
+        // faces.
         const typename DoFHandler<dim>::active_cell_iterator cell_skeleton =
           cell->as_dof_handler_iterator(dof_handler_trial_skeleton);
 
-        const typename DoFHandler<dim>::active_cell_iterator cell_interior =
-          cell->as_dof_handler_iterator(dof_handler_trial_interior);
-        fe_values_trial_interior.reinit(cell_interior);
-
-        // Reinitialization of the matrices to zero.
+        // We then reinitialize all the matrices that we are aggregating
+        // information for each cell.
         G_matrix     = 0;
         B_matrix     = 0;
         B_hat_matrix = 0;
         D_matrix     = 0;
         g_vector     = 0;
         l_vector     = 0;
-        M1_matrix    = 0;
-        M2_matrix    = 0;
-        M3_matrix    = 0;
-        M4_matrix    = 0;
-        M5_matrix    = 0;
+
+        // We also need to do it for the condensation matrices ?
+        M1_matrix = 0;
+        M2_matrix = 0;
+        M3_matrix = 0;
+        M4_matrix = 0;
+        M5_matrix = 0;
 
         // Loop over all quadrature points
         for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
-            // TODO -- Check if complex is the right thing to use
-            // Explain why you need the std::complex for the local calculation.
-            const std::complex<double> iomega      = imag * wavenumber;
-            const std::complex<double> conj_iomega = conj(iomega);
             const double &JxW = fe_values_trial_interior.JxW(q_point);
 
             // Loop over test space dofs
@@ -1302,8 +1321,8 @@ namespace Step100
             M1_matrix.vmult(cell_interior_solution, cell_interior_rhs);
 
             // Map the interior solution to the global solution
-            cell_interior->distribute_local_to_global(cell_interior_solution,
-                                                      solution_interior);
+            cell->distribute_local_to_global(cell_interior_solution,
+                                             solution_interior);
           }
         else
           { // Send the local matrices to the global matrix
