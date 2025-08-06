@@ -768,8 +768,8 @@ namespace Step100
         fe_values_trial_interior.reinit(cell);
 
         // However, we will also need to reinitialize the FEValues for the test
-        // space and make sure that is the same cell as used for the trial
-        // space.
+        // space and make sure that is the same cell as the one used for the
+        // trial space.
         const typename DoFHandler<dim>::active_cell_iterator cell_test =
           cell->as_dof_handler_iterator(dof_handler_test);
         fe_values_test.reinit(cell_test);
@@ -789,22 +789,22 @@ namespace Step100
         g_vector     = 0;
         l_vector     = 0;
 
-        // We also need to do it for the condensation matrices ?
+        // We also need reinitialize the $M_1$ condensation matrix between each
+        // cell to get rid of its inverse status.
         M1_matrix = 0;
-        M2_matrix = 0;
-        M3_matrix = 0;
-        M4_matrix = 0;
-        M5_matrix = 0;
 
-        // Loop over all quadrature points
+        // As it is normally done, we then loop over all quadrature points of
+        // our cell.
         for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
-            // First assign constant values and fill the shape values containers
+            // To avoid unnecessary computation, we first create any constant
+            // values across the quadrature points and fill the shape values
+            // containers for the real and imaginary parts of the velocity and
+            // pressure fields.
             const double &JxW = fe_values_trial_interior.JxW(q_point);
 
             for (unsigned int k : fe_values_test.dof_indices())
               {
-                // Get the real and imaginary parts of the test functions
                 v_real[k] = fe_values_test[extractor_u_real].value(k, q_point);
                 v_imag[k] = fe_values_test[extractor_u_imag].value(k, q_point);
 
@@ -824,7 +824,6 @@ namespace Step100
 
             for (unsigned int k : fe_values_trial_interior.dof_indices())
               {
-                // Get the real and imaginary parts of the trial functions
                 u_real[k] =
                   fe_values_trial_interior[extractor_u_real].value(k, q_point);
                 u_imag[k] =
@@ -998,8 +997,18 @@ namespace Step100
             fe_face_values_test.reinit(cell_test, face);
             fe_values_trial_skeleton.reinit(cell_skeleton, face);
 
-            // Get face number
+            // Get face number and boundary id, if not at boundary use the flag
+            // -1.
             const auto face_no = cell->face_iterator_to_index(face);
+            const auto current_boundary_id =
+              face->at_boundary() ? face->boundary_id() : -1;
+
+            // Set the boundary factor for the Robin boundary conditions.
+            const double k_ratio = (current_boundary_id == 1) ? cos(theta) :
+                                   (current_boundary_id == 3) ? sin(theta) :
+                                                                1.;
+            // Initialize the flux orientation
+            double flux_orientation = 0.;
 
             // Loop over all face quadrature points
             for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point)
@@ -1055,148 +1064,11 @@ namespace Step100
                     const unsigned int current_element_test_i =
                       fe_test.system_to_base_index(i).first.first;
 
-                    // Loop over trial space dofs
-                    for (const auto j : fe_values_trial_skeleton.dof_indices())
+
+                    // If we are at one of the two robin boundary, we need to
+                    // add additional terms to the Gram matrix.
+                    if (current_boundary_id == 1 || current_boundary_id == 3)
                       {
-                        // Create the face trial basis functions
-                        const auto u_hat_n_j =
-                          u_hat_real[j] + imag * u_hat_imag[j];
-
-                        const auto p_hat_j =
-                          p_hat_real[j] + imag * p_hat_imag[j];
-
-                        // Get the information to map the index to the right
-                        // shape function
-                        const unsigned int current_element_trial_j =
-                          fe_trial_skeleton.system_to_base_index(j).first.first;
-
-                        // If in Raviart-thomas element and FE_FaceQ for p
-                        if (((current_element_test_i == 0) ||
-                             (current_element_test_i == 1)) &&
-                            ((current_element_trial_j == 2) ||
-                             (current_element_trial_j == 3)))
-                          {
-                            B_hat_matrix(i, j) +=
-                              ((p_hat_j * v_n_i_conj) * JxW_face).real();
-                          }
-
-                        // If in Q element and FE_FaceQ for u_n
-                        else if (((current_element_test_i == 2) ||
-                                  (current_element_test_i == 3)) &&
-                                 ((current_element_trial_j == 0) ||
-                                  (current_element_trial_j == 1)))
-                          {
-                            // Get the neighbor cell id
-                            int neighbor_cell_id = -1;
-                            if (face->at_boundary())
-                              {
-                                neighbor_cell_id = INT_MAX;
-                              }
-                            else
-                              {
-                                neighbor_cell_id =
-                                  cell->neighbor(face_no)->index();
-                              }
-
-                            // Get current cell id
-                            const auto current_cell_id = cell->index();
-
-                            // Initialize the flux orientation
-                            double flux_orientation = 0.;
-                            if (neighbor_cell_id > current_cell_id)
-                              {
-                                flux_orientation = 1.;
-                              }
-                            else
-                              {
-                                flux_orientation = -1.;
-                              }
-
-                            // (u_hat_n, q*)
-                            B_hat_matrix(i, j) +=
-                              (flux_orientation * u_hat_n_j * q_i_conj *
-                               JxW_face)
-                                .real();
-                          }
-                      }
-                  }
-              }
-
-            // Build the robin boundary conditions
-            if (face->at_boundary() &&
-                ((face->boundary_id() == 1) || (face->boundary_id() == 3)))
-              {
-                // Boundary wavenumber ratio
-                double k_ratio;
-                if (face->boundary_id() == 1)
-                  {
-                    k_ratio = cos(theta);
-                  }
-                else if (face->boundary_id() == 3)
-                  {
-                    k_ratio = sin(theta);
-                  }
-
-                // Loop over all face quadrature points
-                for (unsigned int q_point = 0; q_point < n_face_q_points;
-                     ++q_point)
-                  {
-                    // Initialize reusable variables
-                    const auto &normal =
-                      fe_values_trial_skeleton.normal_vector(q_point);
-                    const double JxW_face =
-                      fe_values_trial_skeleton.JxW(q_point);
-                    const double flux_orientation = 1.;
-
-                    for (unsigned int k : fe_face_values_test.dof_indices())
-                      {
-                        // Get the real and imaginary parts of the test
-                        // functions
-                        v_face_real[k] =
-                          fe_face_values_test[extractor_u_real].value(k,
-                                                                      q_point);
-                        v_face_imag[k] =
-                          fe_face_values_test[extractor_u_imag].value(k,
-                                                                      q_point);
-                        q_face_real[k] =
-                          fe_face_values_test[extractor_p_real].value(k,
-                                                                      q_point);
-                        q_face_imag[k] =
-                          fe_face_values_test[extractor_p_imag].value(k,
-                                                                      q_point);
-                      }
-                    for (unsigned int k :
-                         fe_values_trial_skeleton.dof_indices())
-                      {
-                        // Get the real and imaginary parts of the trial face
-                        // functions
-                        u_hat_real[k] =
-                          fe_values_trial_skeleton[extractor_u_hat_real].value(
-                            k, q_point);
-                        u_hat_imag[k] =
-                          fe_values_trial_skeleton[extractor_u_hat_imag].value(
-                            k, q_point);
-                        p_hat_real[k] =
-                          fe_values_trial_skeleton[extractor_p_hat_real].value(
-                            k, q_point);
-                        p_hat_imag[k] =
-                          fe_values_trial_skeleton[extractor_p_hat_imag].value(
-                            k, q_point);
-                      }
-
-                    // Update the G_matrix
-                    for (const auto i : fe_face_values_test.dof_indices())
-                      {
-                        // Create the face test basis functions
-                        const auto v_n_i_conj =
-                          normal * (v_face_real[i] - imag * v_face_imag[i]);
-
-                        const auto q_i_conj =
-                          q_face_real[i] - imag * q_face_imag[i];
-
-                        const unsigned int current_element_test_i =
-                          fe_test.system_to_base_index(i).first.first;
-
                         for (const auto j : fe_face_values_test.dof_indices())
                           {
                             // Create the face test basis functions
@@ -1250,6 +1122,79 @@ namespace Step100
                               }
                           }
                       }
+
+
+                    // Loop over trial space dofs
+                    for (const auto j : fe_values_trial_skeleton.dof_indices())
+                      {
+                        // Create the face trial basis functions
+                        const auto u_hat_n_j =
+                          u_hat_real[j] + imag * u_hat_imag[j];
+
+                        const auto p_hat_j =
+                          p_hat_real[j] + imag * p_hat_imag[j];
+
+                        // Get the information to map the index to the right
+                        // shape function
+                        const unsigned int current_element_trial_j =
+                          fe_trial_skeleton.system_to_base_index(j).first.first;
+
+                        // If in Raviart-thomas element and FE_FaceQ for p
+                        if (((current_element_test_i == 0) ||
+                             (current_element_test_i == 1)) &&
+                            ((current_element_trial_j == 2) ||
+                             (current_element_trial_j == 3)))
+                          {
+                            B_hat_matrix(i, j) +=
+                              ((p_hat_j * v_n_i_conj) * JxW_face).real();
+                          }
+
+                        // If in Q element and FE_FaceQ for u_n
+                        else if (((current_element_test_i == 2) ||
+                                  (current_element_test_i == 3)) &&
+                                 ((current_element_trial_j == 0) ||
+                                  (current_element_trial_j == 1)))
+                          {
+                            // Get the neighbor cell id
+                            int neighbor_cell_id = -1;
+                            if (face->at_boundary())
+                              {
+                                neighbor_cell_id = INT_MAX;
+                              }
+                            else
+                              {
+                                neighbor_cell_id =
+                                  cell->neighbor(face_no)->index();
+                              }
+
+                            // Get current cell id
+                            const auto current_cell_id = cell->index();
+
+
+                            if (neighbor_cell_id > current_cell_id)
+                              {
+                                flux_orientation = 1.;
+                              }
+                            else
+                              {
+                                flux_orientation = -1.;
+                              }
+
+                            // (u_hat_n, q*)
+                            B_hat_matrix(i, j) +=
+                              (flux_orientation * u_hat_n_j * q_i_conj *
+                               JxW_face)
+                                .real();
+                          }
+                      }
+                  }
+
+                // Now we will build the g_vector and D_matrix, which are only
+                // defined on the Robin boundaries.
+                if (current_boundary_id == 1 || current_boundary_id == 3)
+                  {
+                    // Initialize the flux orientation
+                    flux_orientation = 1.;
 
                     // Update the g_vector and D_matrix
                     for (const auto i : fe_values_trial_skeleton.dof_indices())
@@ -1347,7 +1292,6 @@ namespace Step100
                   }
               }
           }
-
         // Compute the condensation matrices
         G_matrix.invert(); // G^-1
 
