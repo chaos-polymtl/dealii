@@ -683,8 +683,30 @@ namespace Step100
     // and test spaces. To avoid the query of the FEValues at each quadrature
     // point, we will use containers that will store the desired values before
     // hand.
+    std::vector<Tensor<1, dim>> v_real(dofs_per_cell_test);
+    std::vector<Tensor<1, dim>> v_imag(dofs_per_cell_test);
+    std::vector<double>         div_v_real(dofs_per_cell_test);
+    std::vector<double>         div_v_imag(dofs_per_cell_test);
+    std::vector<double>         q_real(dofs_per_cell_test);
+    std::vector<double>         q_imag(dofs_per_cell_test);
+    std::vector<Tensor<1, dim>> grad_q_real(dofs_per_cell_test);
+    std::vector<Tensor<1, dim>> grad_q_imag(dofs_per_cell_test);
+    std::vector<Tensor<1, dim>> v_face_real(dofs_per_cell_test);
+    std::vector<Tensor<1, dim>> v_face_imag(dofs_per_cell_test);
+    std::vector<double>         q_face_real(dofs_per_cell_test);
+    std::vector<double>         q_face_imag(dofs_per_cell_test);
 
-    // We create the condensation matrices
+    std::vector<Tensor<1, dim>> u_real(dofs_per_cell_trial_interior);
+    std::vector<Tensor<1, dim>> u_imag(dofs_per_cell_trial_interior);
+    std::vector<double>         p_real(dofs_per_cell_trial_interior);
+    std::vector<double>         p_imag(dofs_per_cell_trial_interior);
+
+    std::vector<double> u_hat_real(dofs_per_cell_trial_skeleton);
+    std::vector<double> u_hat_imag(dofs_per_cell_trial_skeleton);
+    std::vector<double> p_hat_real(dofs_per_cell_trial_skeleton);
+    std::vector<double> p_hat_imag(dofs_per_cell_trial_skeleton);
+
+    // We then create the condensation matrices
     LAPACKFullMatrix<double> M1_matrix(dofs_per_cell_trial_interior,
                                        dofs_per_cell_trial_interior);
     LAPACKFullMatrix<double> M2_matrix(dofs_per_cell_trial_interior,
@@ -735,7 +757,7 @@ namespace Step100
     // step-81.
     constexpr std::complex<double> imag(0., 1.);
     const std::complex<double>     iomega      = imag * wavenumber;
-    const std::complex<double>     conj_iomega = conj(iomega);
+    const std::complex<double>     iomega_conj = conj(iomega);
 
     // We first loop over the cells of the triangulation. We will choose to loop
     // on using the DofHandler of the trial space because it is the natural
@@ -777,34 +799,66 @@ namespace Step100
         // Loop over all quadrature points
         for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
+            // First assign constant values and fill the shape values containers
             const double &JxW = fe_values_trial_interior.JxW(q_point);
+
+            for (unsigned int k : fe_values_test.dof_indices())
+              {
+                // Get the real and imaginary parts of the test functions
+                v_real[k] = fe_values_test[extractor_u_real].value(k, q_point);
+                v_imag[k] = fe_values_test[extractor_u_imag].value(k, q_point);
+
+                div_v_real[k] =
+                  fe_values_test[extractor_u_real].divergence(k, q_point);
+                div_v_imag[k] =
+                  fe_values_test[extractor_u_imag].divergence(k, q_point);
+
+                q_real[k] = fe_values_test[extractor_p_real].value(k, q_point);
+                q_imag[k] = fe_values_test[extractor_p_imag].value(k, q_point);
+
+                grad_q_real[k] =
+                  fe_values_test[extractor_p_real].gradient(k, q_point);
+                grad_q_imag[k] =
+                  fe_values_test[extractor_p_imag].gradient(k, q_point);
+              }
+
+            for (unsigned int k : fe_values_trial_interior.dof_indices())
+              {
+                // Get the real and imaginary parts of the trial functions
+                u_real[k] =
+                  fe_values_trial_interior[extractor_u_real].value(k, q_point);
+                u_imag[k] =
+                  fe_values_trial_interior[extractor_u_imag].value(k, q_point);
+
+                p_real[k] =
+                  fe_values_trial_interior[extractor_p_real].value(k, q_point);
+                p_imag[k] =
+                  fe_values_trial_interior[extractor_p_imag].value(k, q_point);
+              }
 
             // Loop over test space dofs
             for (const auto i : fe_values_test.dof_indices())
               {
-                // Define the necessary complex test basis functions
-                const auto v_i_conj =
-                  fe_values_test[extractor_u_real].value(i, q_point) -
-                  imag * fe_values_test[extractor_u_imag].value(i, q_point);
+                // Define the necessary complex test basis functions, note the
+                // minus sign when we are building the conjugate of the
+                // functions.
+                const auto v_i_conj = v_real[i] - imag * v_imag[i];
 
-                const auto v_i_div_conj =
-                  fe_values_test[extractor_u_real].divergence(i, q_point) -
-                  imag *
-                    fe_values_test[extractor_u_imag].divergence(i, q_point);
+                const auto div_v_i_conj = div_v_real[i] - imag * div_v_imag[i];
 
-                const auto q_i_conj =
-                  fe_values_test[extractor_p_real].value(i, q_point) -
-                  imag * fe_values_test[extractor_p_imag].value(i, q_point);
+                const auto q_i_conj = q_real[i] - imag * q_imag[i];
 
-                const auto q_i_grad_conj =
-                  fe_values_test[extractor_p_real].gradient(i, q_point) -
-                  imag * fe_values_test[extractor_p_imag].gradient(i, q_point);
+                const auto grad_q_i_conj =
+                  grad_q_real[i] - imag * grad_q_imag[i];
 
-                // Get the information on witch element the dof is
+                // Get the information on wich element the dof is for the test
+                // space. This will help to build the right equation at the
+                // right place in the matrix.
                 const unsigned int current_element_test_i =
                   fe_test.system_to_base_index(i).first.first;
 
-                // If in Q element -> test for pressure
+                // If we are in the test space for pressure, we build the load
+                // vector. For our test case this is null.
                 if ((current_element_test_i == 2) ||
                     (current_element_test_i == 3))
                   {
@@ -812,145 +866,125 @@ namespace Step100
                     l_vector(i) += 0;
                   }
 
-                // Construct G_matrix, loop over test space dofs again
+                // We will first construct the matrix G, the Gram matrix, so
+                // will loop over test space dofs a second time.
                 for (const auto j : fe_values_test.dof_indices())
                   {
                     // Create the test basis functions
-                    const auto v_j =
-                      fe_values_test[extractor_u_real].value(j, q_point) +
-                      imag * fe_values_test[extractor_u_imag].value(j, q_point);
+                    const auto v_j = v_real[j] + imag * v_imag[j];
 
-                    const auto v_j_div =
-                      fe_values_test[extractor_u_real].divergence(j, q_point) +
-                      imag *
-                        fe_values_test[extractor_u_imag].divergence(j, q_point);
+                    const auto div_v_j = div_v_real[j] + imag * div_v_imag[j];
 
-                    const auto q_j =
-                      fe_values_test[extractor_p_real].value(j, q_point) +
-                      imag * fe_values_test[extractor_p_imag].value(j, q_point);
+                    const auto q_j = q_real[j] + imag * q_imag[j];
 
-                    const auto q_j_grad =
-                      fe_values_test[extractor_p_real].gradient(j, q_point) +
-                      imag *
-                        fe_values_test[extractor_p_imag].gradient(j, q_point);
+                    const auto grad_q_j =
+                      grad_q_real[j] + imag * grad_q_imag[j];
 
-                    // Get the information on witch element the dof is
+                    // Again, we get the information on wich element the dof is
                     const unsigned int current_element_test_j =
                       fe_test.system_to_base_index(j).first.first;
 
-                    // If both Raviart-thomas element
+                    // In what follows, we will build the corresponding terms
+                    // for each combination of test space. We first start with
+                    // both test space in v test function.
                     if (((current_element_test_i == 0) ||
                          (current_element_test_i == 1)) &&
                         ((current_element_test_j == 0) ||
                          (current_element_test_j == 1)))
                       {
-                        // (v,v*) + (div(v),div(v)*) + (i omega v, (i
-                        // omega v)*)
                         G_matrix(i, j) +=
-                          (((v_j * v_i_conj) + (v_j_div * v_i_div_conj) +
-                            (conj_iomega * v_j * iomega * v_i_conj)) *
+                          (((v_j * v_i_conj) + (div_v_j * div_v_i_conj) +
+                            (iomega_conj * v_j * iomega * v_i_conj)) *
                            JxW)
                             .real();
                       }
-                    // If in i Raviart-thomas element and j in Q element
+                    // If dof "i" in v test function and dof "j" in q test
+                    // function.
                     else if (((current_element_test_i == 0) ||
                               (current_element_test_i == 1)) &&
                              ((current_element_test_j == 2) ||
                               (current_element_test_j == 3)))
                       {
-                        // (grad(q), (i omega v)*) + (i omega q, div(v) *)
                         G_matrix(i, j) -=
-                          (((q_j_grad * iomega * v_i_conj) +
-                            (conj_iomega * q_j * v_i_div_conj)) *
+                          (((grad_q_j * iomega * v_i_conj) +
+                            (iomega_conj * q_j * div_v_i_conj)) *
                            JxW)
                             .real();
                       }
-                    // If in i Q element and j in Raviart-thomas element
+                    // If dof "i" in q test function and dof "j" in v test
+                    // function.
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_test_j == 0) ||
                               (current_element_test_j == 1)))
                       {
-                        // ( i omega v , grad(q)*) + (div(v), (i omega v) *)
                         G_matrix(i, j) -=
-                          (((conj_iomega * v_j * q_i_grad_conj) +
-                            (v_j_div * iomega * q_i_conj)) *
+                          (((iomega_conj * v_j * grad_q_i_conj) +
+                            (div_v_j * iomega * q_i_conj)) *
                            JxW)
                             .real();
                       }
-                    // If both Q element
+                    // If both in q test function.
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_test_j == 2) ||
                               (current_element_test_j == 3)))
                       {
-                        // (q,q*) + (grad(q),grad(q)*) + (i omega q, (i omega
-                        // v)*)
                         G_matrix(i, j) +=
-                          (((q_j * q_i_conj) + (q_j_grad * q_i_grad_conj) +
-                            (conj_iomega * q_j * iomega * q_i_conj)) *
+                          (((q_j * q_i_conj) + (grad_q_j * grad_q_i_conj) +
+                            (iomega_conj * q_j * iomega * q_i_conj)) *
                            JxW)
                             .real();
                       }
                   }
 
-                // Loop over trial space dofs
+                // Now we will build the B matrix, the one associated to the
+                // operator of our problem on the interior element. So we loop
+                // over trial space dofs on "j".
                 for (const auto j : fe_values_trial_interior.dof_indices())
                   {
                     // Create the trial basis functions
-                    const auto u_j =
-                      fe_values_trial_interior[extractor_u_real].value(
-                        j, q_point) +
-                      imag * fe_values_trial_interior[extractor_u_imag].value(
-                               j, q_point);
+                    const auto u_j = u_real[j] + imag * u_imag[j];
 
-                    const auto p_j =
-                      fe_values_trial_interior[extractor_p_real].value(
-                        j, q_point) +
-                      imag * fe_values_trial_interior[extractor_p_imag].value(
-                               j, q_point);
+                    const auto p_j = p_real[j] + imag * p_imag[j];
 
-                    // Get the information to map the index to the right shape
-                    // function
+                    // Again, we get the information to map the index to the
+                    // right shape function.
                     const unsigned int current_element_trial_j =
                       fe_trial_interior.system_to_base_index(j).first.first;
 
-                    // If in Raviart-thomas element and DGQ^dim element
+                    // If dof "i" in v test function and dof "j" in u trial.
                     if (((current_element_test_i == 0) ||
                          (current_element_test_i == 1)) &&
                         ((current_element_trial_j == 0) ||
                          (current_element_trial_j == 1)))
                       {
-                        // (i omega u, v*)
                         B_matrix(i, j) +=
                           ((iomega * u_j * v_i_conj) * JxW).real();
                       }
-                    // If in Raviart-thomas element and DGQ element
+                    // If dof "i" in v test function and dof "j" in p trial.
                     else if (((current_element_test_i == 0) ||
                               (current_element_test_i == 1)) &&
                              ((current_element_trial_j == 2) ||
                               (current_element_trial_j == 3)))
                       {
-                        // -(p,div(v)*)
-                        B_matrix(i, j) -= ((p_j * v_i_div_conj) * JxW).real();
+                        B_matrix(i, j) -= ((p_j * div_v_i_conj) * JxW).real();
                       }
 
-                    // If in Q element and DGQ^dim element
+                    // If dof "i" in q test function and dof "j" in u trial.
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_trial_j == 0) ||
                               (current_element_trial_j == 1)))
                       {
-                        // -(u,grad(q)*)
-                        B_matrix(i, j) -= ((u_j * q_i_grad_conj) * JxW).real();
+                        B_matrix(i, j) -= ((u_j * grad_q_i_conj) * JxW).real();
                       }
-                    // If in Q element and DGQ element
+                    // If dof "i" in q test function and dof "j" in p
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_trial_j == 2) ||
                               (current_element_trial_j == 3)))
                       {
-                        // (i omega p, q*)
                         B_matrix(i, j) +=
                           ((iomega * p_j * q_i_conj) * JxW).real();
                       }
@@ -958,10 +992,10 @@ namespace Step100
               }
           }
         // Loop over all face
-        for (const auto &face : cell->face_iterators())
+        for (const auto &face : cell_skeleton->face_iterators())
           {
             // Reinitialization
-            fe_face_values_test.reinit(cell, face);
+            fe_face_values_test.reinit(cell_test, face);
             fe_values_trial_skeleton.reinit(cell_skeleton, face);
 
             // Get face number
@@ -970,29 +1004,54 @@ namespace Step100
             // Loop over all face quadrature points
             for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point)
               {
-                // Get normal vector
+                // Again, we assign the constant values and fill the shape
+                // values containers.
                 const auto &normal =
                   fe_values_trial_skeleton.normal_vector(q_point);
                 const double &JxW_face = fe_values_trial_skeleton.JxW(q_point);
+
+                for (unsigned int k : fe_face_values_test.dof_indices())
+                  {
+                    // Get the real and imaginary parts of the test functions
+                    v_face_real[k] =
+                      fe_face_values_test[extractor_u_real].value(k, q_point);
+                    v_face_imag[k] =
+                      fe_face_values_test[extractor_u_imag].value(k, q_point);
+                    q_face_real[k] =
+                      fe_face_values_test[extractor_p_real].value(k, q_point);
+                    q_face_imag[k] =
+                      fe_face_values_test[extractor_p_imag].value(k, q_point);
+                  }
+                for (unsigned int k : fe_values_trial_skeleton.dof_indices())
+                  {
+                    // Get the real and imaginary parts of the trial face
+                    // functions
+                    u_hat_real[k] =
+                      fe_values_trial_skeleton[extractor_u_hat_real].value(
+                        k, q_point);
+                    u_hat_imag[k] =
+                      fe_values_trial_skeleton[extractor_u_hat_imag].value(
+                        k, q_point);
+                    p_hat_real[k] =
+                      fe_values_trial_skeleton[extractor_p_hat_real].value(
+                        k, q_point);
+                    p_hat_imag[k] =
+                      fe_values_trial_skeleton[extractor_p_hat_imag].value(
+                        k, q_point);
+                  }
 
                 // Loop over the test space dofs
                 for (const auto i : fe_face_values_test.dof_indices())
                   {
                     // Create the face test basis functions
                     const auto v_n_i_conj =
-                      normal *
-                      (fe_face_values_test[extractor_u_real].value(i, q_point) -
-                       imag *
-                         fe_face_values_test[extractor_u_imag].value(i,
-                                                                     q_point));
+                      normal * (v_face_real[i] - imag * v_face_imag[i]);
 
                     const auto q_i_conj =
-                      fe_face_values_test[extractor_p_real].value(i, q_point) -
-                      imag *
-                        fe_face_values_test[extractor_p_imag].value(i, q_point);
+                      q_face_real[i] - imag * q_face_imag[i];
 
-                    // Get the information to map the index to the right shape
-                    // function
+                    // Get the information to map the index to the right
+                    // shape function
                     const unsigned int current_element_test_i =
                       fe_test.system_to_base_index(i).first.first;
 
@@ -1001,16 +1060,10 @@ namespace Step100
                       {
                         // Create the face trial basis functions
                         const auto u_hat_n_j =
-                          fe_values_trial_skeleton[extractor_u_hat_real].value(
-                            j, q_point) +
-                          imag * fe_values_trial_skeleton[extractor_u_hat_imag]
-                                   .value(j, q_point);
+                          u_hat_real[j] + imag * u_hat_imag[j];
 
                         const auto p_hat_j =
-                          fe_values_trial_skeleton[extractor_p_hat_real].value(
-                            j, q_point) +
-                          imag * fe_values_trial_skeleton[extractor_p_hat_imag]
-                                   .value(j, q_point);
+                          p_hat_real[j] + imag * p_hat_imag[j];
 
                         // Get the information to map the index to the right
                         // shape function
@@ -1095,21 +1148,51 @@ namespace Step100
                       fe_values_trial_skeleton.JxW(q_point);
                     const double flux_orientation = 1.;
 
+                    for (unsigned int k : fe_face_values_test.dof_indices())
+                      {
+                        // Get the real and imaginary parts of the test
+                        // functions
+                        v_face_real[k] =
+                          fe_face_values_test[extractor_u_real].value(k,
+                                                                      q_point);
+                        v_face_imag[k] =
+                          fe_face_values_test[extractor_u_imag].value(k,
+                                                                      q_point);
+                        q_face_real[k] =
+                          fe_face_values_test[extractor_p_real].value(k,
+                                                                      q_point);
+                        q_face_imag[k] =
+                          fe_face_values_test[extractor_p_imag].value(k,
+                                                                      q_point);
+                      }
+                    for (unsigned int k :
+                         fe_values_trial_skeleton.dof_indices())
+                      {
+                        // Get the real and imaginary parts of the trial face
+                        // functions
+                        u_hat_real[k] =
+                          fe_values_trial_skeleton[extractor_u_hat_real].value(
+                            k, q_point);
+                        u_hat_imag[k] =
+                          fe_values_trial_skeleton[extractor_u_hat_imag].value(
+                            k, q_point);
+                        p_hat_real[k] =
+                          fe_values_trial_skeleton[extractor_p_hat_real].value(
+                            k, q_point);
+                        p_hat_imag[k] =
+                          fe_values_trial_skeleton[extractor_p_hat_imag].value(
+                            k, q_point);
+                      }
+
                     // Update the G_matrix
                     for (const auto i : fe_face_values_test.dof_indices())
                       {
                         // Create the face test basis functions
                         const auto v_n_i_conj =
-                          normal * (fe_face_values_test[extractor_u_real].value(
-                                      i, q_point) -
-                                    imag * fe_face_values_test[extractor_u_imag]
-                                             .value(i, q_point));
+                          normal * (v_face_real[i] - imag * v_face_imag[i]);
 
                         const auto q_i_conj =
-                          fe_face_values_test[extractor_p_real].value(i,
-                                                                      q_point) -
-                          imag * fe_face_values_test[extractor_p_imag].value(
-                                   i, q_point);
+                          q_face_real[i] - imag * q_face_imag[i];
 
                         const unsigned int current_element_test_i =
                           fe_test.system_to_base_index(i).first.first;
@@ -1118,17 +1201,10 @@ namespace Step100
                           {
                             // Create the face test basis functions
                             const auto v_n_j =
-                              normal *
-                              (fe_face_values_test[extractor_u_real].value(
-                                 j, q_point) +
-                               imag * fe_face_values_test[extractor_u_imag]
-                                        .value(j, q_point));
+                              normal * (v_face_real[j] + imag * v_face_imag[j]);
 
                             const auto q_j =
-                              fe_face_values_test[extractor_p_real].value(
-                                j, q_point) +
-                              imag * fe_face_values_test[extractor_p_imag]
-                                       .value(j, q_point);
+                              q_face_real[j] + imag * q_face_imag[j];
 
                             const unsigned int current_element_test_j =
                               fe_test.system_to_base_index(j).first.first;
@@ -1180,23 +1256,18 @@ namespace Step100
                       {
                         // Create the face trial basis functions
                         const auto u_hat_n_i_conj =
-                          fe_values_trial_skeleton[extractor_u_hat_real].value(
-                            i, q_point) -
-                          imag * fe_values_trial_skeleton[extractor_u_hat_imag]
-                                   .value(i, q_point);
+                          u_hat_real[i] - imag * u_hat_imag[i];
 
                         const auto p_hat_i_conj =
-                          fe_values_trial_skeleton[extractor_p_hat_real].value(
-                            i, q_point) -
-                          imag * fe_values_trial_skeleton[extractor_p_hat_imag]
-                                   .value(i, q_point);
+                          p_hat_real[i] - imag * p_hat_imag[i];
 
                         // Get the information to map the index to the right
                         // shape function
                         const unsigned int current_element_trial_i =
                           fe_trial_skeleton.system_to_base_index(i).first.first;
 
-                        // No source terms, Sommerfeld B.C., so g_vector is zero
+                        // No source terms, Sommerfeld B.C., so g_vector is
+                        // zero
                         if ((current_element_trial_i == 0) ||
                             (current_element_trial_i == 1))
                           {
@@ -1216,21 +1287,13 @@ namespace Step100
                           {
                             // Create the face trial basis functions
                             const auto u_hat_n_j =
-                              fe_values_trial_skeleton[extractor_u_hat_real]
-                                .value(j, q_point) +
-                              imag *
-                                fe_values_trial_skeleton[extractor_u_hat_imag]
-                                  .value(j, q_point);
+                              u_hat_real[j] + imag * u_hat_imag[j];
 
                             const auto p_hat_j =
-                              fe_values_trial_skeleton[extractor_p_hat_real]
-                                .value(j, q_point) +
-                              imag *
-                                fe_values_trial_skeleton[extractor_p_hat_imag]
-                                  .value(j, q_point);
+                              p_hat_real[j] + imag * p_hat_imag[j];
 
-                            // Get the information to map the index to the right
-                            // shape function
+                            // Get the information to map the index to the
+                            // right shape function
                             const unsigned int current_element_trial_j =
                               fe_trial_skeleton.system_to_base_index(j)
                                 .first.first;
@@ -1646,21 +1709,21 @@ namespace Step100
     L2_error_u_hat_real /= mesh_skeleton_area;
     L2_error_u_hat_imag /= mesh_skeleton_area;
 
-    std::cout << "L2 velocity real part error is : "
+    std::cout << "Velocity real part L2 error is : "
               << std::sqrt(L2_error_u_real) << std::endl;
-    std::cout << "L2 velocity imag part error is : "
+    std::cout << "Velocity imag part L2 error is : "
               << std::sqrt(L2_error_u_imag) << std::endl;
-    std::cout << "L2 pressure real part error is : "
+    std::cout << "Pressure real part L2 error is : "
               << std::sqrt(L2_error_p_real) << std::endl;
-    std::cout << "L2 pressure imag part error is : "
+    std::cout << "Pressure imag part L2 error is : "
               << std::sqrt(L2_error_p_imag) << std::endl;
-    std::cout << "L2 velocity skeleton real part error is : "
+    std::cout << "Velocity skeleton real part L2 error is : "
               << std::sqrt(L2_error_u_hat_real) << std::endl;
-    std::cout << "L2 velocity skeleton imag part error is : "
+    std::cout << "Velocity skeleton imag part L2 error is : "
               << std::sqrt(L2_error_u_hat_imag) << std::endl;
-    std::cout << "L2 pressure skeleton real part error is : "
+    std::cout << "Pressure skeleton real part L2 error is : "
               << std::sqrt(L2_error_p_hat_real) << std::endl;
-    std::cout << "L2 presssure skeleton imag part error is : "
+    std::cout << "Pressure skeleton imag part L2 error is : "
               << std::sqrt(L2_error_p_hat_imag) << std::endl;
 
     // Store the errors in the error table
