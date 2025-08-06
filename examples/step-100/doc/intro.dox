@@ -70,9 +70,6 @@ However, it has been shown from previous DPG study that the ultraweak formulatio
 
 <h3>The Discontinuous Petrov-Galerkin Method</h3>
 
-
-<h3>The Discontinuous Petrov-Galerkin Method</h3>
-
 <!-- Introduction of the DPG method. -->
 There are numerous papers that describes the mathematics behind the DPG method in the literature consequently, here we will give minimal details for the reader comprehension and focus mainly on the key element necessary for the understanding of the numerical implementation. Let’s start with a standard abstract problem defined on the product of the trial and test Hilbert spaces $U \times V$. We want to find the solution to the following problem:
 @f{equation*}{

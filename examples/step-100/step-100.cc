@@ -65,22 +65,21 @@ namespace Step100
 
 
   // In the following function declaration, we will create the analytical
-  // solutions of the velocity field ($u$) and the pressure field ($p$) and the
-  // associated boundary values. However, in what follows, we will avoid to use
-  // deal.ii complexe capabilities and only use the complex functions that are
-  // defined in the C++ standard library. Consequently, we will define two
-  // implementation of each functions, one for the real component and one for
-  // the imaginary one.
+  // solutions of the velocity field ($\mathbf{u}$) and the pressure field
+  // ($p^*$) and the associated boundary values. However, in what follows, we
+  // will avoid to use deal.ii complexe capabilities and only use the complex
+  // functions that are defined in the C++ standard library. Consequently, we
+  // will define two implementation of each functions, one for the real
+  // component and one for the imaginary one.
 
-  // Create analytical solution class for kinematic pressure (p).
+  // Create analytical solution class for kinematic pressure ($p^*$).
   template <int dim>
   class AnalyticalSolution_p_real : public Function<dim>
   {
   public:
-    // The analytical solution will depend on the wavenumber and the angle
-    // defined for the direction of propagation so we will add them to the
-    // constructor. The pressure is a scalar field, so we only need one
-    // component by default.
+    // The analytical solution will depend on the wavenumber $k$ and the angle
+    // $\theta$ defined for the direction of propagation so we will add them to
+    // the constructor.
     AnalyticalSolution_p_real(double wavenumber, double theta)
       : Function<dim>()
       , wavenumber(wavenumber)
@@ -99,7 +98,6 @@ namespace Step100
     const Point<dim>                   &p,
     [[maybe_unused]] const unsigned int component) const
   {
-    // Imaginary unit
     constexpr std::complex<double> imag(0., 1.);
 
     return std::exp(-imag * wavenumber *
@@ -107,7 +105,7 @@ namespace Step100
       .real();
   }
 
-  // The same goes for the imaginary part of the analytical solution
+  // The same goes for the imaginary part of the analytical solution.
   template <int dim>
   class AnalyticalSolution_p_imag : public Function<dim>
   {
@@ -138,13 +136,15 @@ namespace Step100
   }
 
 
-  // Now we create analytical solution class for the velocity field (u)
+  // Now we do the same for the velocity field ($\mathbf{u}) and create two
+  // class that will return either the real or the imaginary part of our
+  // analytical solution.
   template <int dim>
   class AnalyticalSolution_u_real : public Function<dim>
   {
     // This class is similar to the previous ones but since the velocity field
-    // is a vector, we will need dim component. For our problem of interest, dim
-    // = 2.
+    // is a vector, we will need the function to return $dim$ component. For our
+    // problem of interest, $dim = 2$.
   public:
     AnalyticalSolution_u_real(double wavenumber, double theta)
       : Function<dim>(2)
@@ -181,8 +181,6 @@ namespace Step100
         "Too much components for the analytical solution");
   }
 
-  // The same goes for the imaginary part of the analytical solution of the
-  // velocity field
   template <int dim>
   class AnalyticalSolution_u_imag : public Function<dim>
   {
@@ -222,16 +220,18 @@ namespace Step100
         "Too much components for the analytical solution");
   }
 
-  // Now we will do a similar job for the boundary values functions. The main
+  // We will do a similar job for the boundary values functions. The main
   // difference is that the number of components will now be 4 because those
-  // functions will be applied to our space of skeletons unknowns which are
-  // scalars for the pressure and velocity fields, but also have real and
-  // imaginary parts.
+  // functions will be applied to our space of skeletons unknowns via the tool
+  // VectorTools::interpolate_boundary_values. There are 4 components, because
+  // the skeleton unknowns on faces for the velocity field are scalars from the
+  // definition $\hat{u}_n = \mathbf{u} \cdot n$ and we there is the real and
+  // imaginary part of both fields.
+
   template <int dim>
   class BoundaryValues_p_real : public Function<dim>
   {
   public:
-    // Constructor
     BoundaryValues_p_real(const double wavenumber, const double theta)
       : Function<dim>(4)
       , wavenumber(wavenumber)
@@ -259,7 +259,6 @@ namespace Step100
   class BoundaryValues_p_imag : public Function<dim>
   {
   public:
-    // Constructor
     BoundaryValues_p_imag(const double wavenumber, const double theta)
       : Function<dim>(4)
       , wavenumber(wavenumber)
@@ -282,14 +281,10 @@ namespace Step100
 
     return std::exp(-imag * wavenumber * p[1] * std::sin(theta)).imag();
   }
-
-  // Lastly, we create the boundary values for the velocity field $\hat{u}_n =
-  // \mathb{u} \cdot n$.
   template <int dim>
   class BoundaryValues_u_real : public Function<dim>
   {
   public:
-    // Constructor
     BoundaryValues_u_real(const double wavenumber, const double theta)
       : Function<dim>(4)
       , wavenumber(wavenumber)
@@ -317,7 +312,6 @@ namespace Step100
   class BoundaryValues_u_imag : public Function<dim>
   {
   public:
-    // Constructor
     BoundaryValues_u_imag(const double wavenumber, const double theta)
       : Function<dim>(4)
       , wavenumber(wavenumber)
