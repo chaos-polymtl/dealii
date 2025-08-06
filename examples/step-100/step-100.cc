@@ -1165,7 +1165,7 @@ namespace Step100
                                       (current_element_test_j == 3)))
                               {
                                 G_matrix(i, j) +=
-                                   kn_omega * q_j * v_n_i_conj * JxW_face)
+                                  (kn_omega * q_j * v_n_i_conj * JxW_face)
                                     .real();
                               }
                             // We build $\langle \mathbf{v} \cdot \mathbf{n},
