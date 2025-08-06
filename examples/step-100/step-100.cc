@@ -136,7 +136,7 @@ namespace Step100
   }
 
 
-  // Now we do the same for the velocity field ($\mathbf{u}) and create two
+  // Now we do the same for the velocity field ($\mathbf{u}$) and create two
   // class that will return either the real or the imaginary part of our
   // analytical solution.
   template <int dim>
@@ -225,7 +225,7 @@ namespace Step100
   // functions will be applied to our space of skeletons unknowns via the tool
   // VectorTools::interpolate_boundary_values. There are 4 components, because
   // the skeleton unknowns on faces for the velocity field are scalars from the
-  // definition $\hat{u}_n = \mathbf{u} \cdot n$ and we there is the real and
+  // definition $\hat{u}_n = \mathbf{u} \cdot n$ and there are the real and
   // imaginary part of both fields.
 
   template <int dim>
@@ -341,20 +341,21 @@ namespace Step100
 
   // Next let's declare the main class of this program. The structure follows
   // that of usual programs. The main difference lies in the fact that we rely
-  // on multiple DOFHandler and FESystem. The DOFHandlers that we rely on are
+  // on multiple DoFHandler and FESystem. The DoFHandlers that we rely on are
   // the following:
   // - The <code>dof_handler_trial_interior</code> is for the unknowns in the
   // interior of the cells
   // - The <code>dof_handler_trial_skeleton</code> is for the unknowns in the
   // skeleton
   // - The <code>dof_handler_test</code> is for the test functions. Although we
-  // do not use the unknowns associated with this DOFHandler, it enables us to
+  // do not use the unknowns associated with this DoFHandler, it enables us to
   // evaluate the test function we will use in DPG.
+
   // The same applies for the three FESystem:
   // <code>fe_system_trial_interior</code>,
   // <code>fe_system_trial_skeleton</code> and <code>fe_system_test</code>. In
   // each one of these we will store the relevant finite element space in the
-  // same order to avoid comfusion. The first component will therefore always be
+  // same order to avoid confusion. The first component will therefore always be
   // related to the real part of the velocity, the second component to the its
   // imaginary part, the third component to the real part of the pressure and
   // the fourth component to its imaginary part.
@@ -365,12 +366,12 @@ namespace Step100
   public:
     // The constructor takes as an argument the degree of the trial space as
     // well as the delta degree between the trial space and the test space which
-    // is necesasry to constructor the DPG problem. The
+    // is necessary to construct the DPG problem. The
     // <code>delta_degree</code> must be at least 1 to ensure that the DPG
-    // method is functional. The parameter <code>theta</code> determines the
-    // angle of the incident plane wave. The angle must between $0$ and
-    // $\frac{\pi}{2}$ included. Those restrictions are asserted in the
-    // constructor.
+    // method is well posed. The parameter <code>theta</code> determines the
+    // angle of the incident plane wave. That angle must be between $0$ and
+    // $\frac{\pi}{2}$ included for the boundary conditions to make sense. Those
+    // restrictions are asserted in the constructor.
 
     DPGHelmholtz(unsigned int degree,
                  unsigned int delta_degree,
@@ -379,46 +380,49 @@ namespace Step100
     void run();
 
   private:
-    // The setup_system function initializes the three DoFHandlers, the system
-    // matrix and right-hand side and establishes the boundary conditions that
-    // rely on constraints.
+    // The <code>setup_system</code> function initializes the three DoFHandlers,
+    // the system matrix and right-hand side and establishes the boundary
+    // conditions that rely on constraints.
 
     void setup_system();
 
-    // The assemble_system assembles both the right-hand side and the system
-    // matrix. This function is used twice per resolution and it has two
-    // functions.
+    // The <code>assemble_system</code> assembles both the right-hand side and
+    // the system matrix. This function is used twice per resolution and it has
+    // two functions.
     // - When <code>solve_interior = false</code> the system is assembled and is
     // locally condensed such that the resulting system only contains the
-    // skeleton uknowns. This is achieved by local condensation.
+    // skeleton unknowns. This is achieved by local condensation.
     // - When <code>solve_interior = true</code> the system is assembled and the
     // skeleton degrees of freedom are used to reconstruct the interior
     // solution.
 
     void assemble_system(bool solve_interior = false);
 
-    // Solves the linear system of equation. This linear system of equation is
-    // only for the skeleton unknowns.
+    // <code>solve_skeleton</code> solves the linear system of equation. This
+    // linear system of equation is only for the skeleton unknowns.
     void solve_skeleton();
 
-    // Refines the mesh uniformly
+    // <code>refine_grid</code> refines the mesh uniformly.
     void refine_grid(unsigned int cycle);
 
-    // Write the skeleton and the interior unknowns into two different paraview
-    // files.
+    // <code>output_results</code> write the skeleton and the interior unknowns
+    // into two different paraview files.
     void output_results(unsigned int cycle);
 
-    // Calculates the $L^2$ norm of the error using the analytical solution.
+    // <code> calculate_L2_error</code> calculates the $L^2$ norm of the error
+    // using the analytical solution.
     void calculate_L2_error();
 
+    // We then define multiple variables that are used throughout the class
+    // starting with the triangulation.
     Triangulation<dim> triangulation;
 
-    // Variables for the interior
+    // The variables for the interior unknowns.
     const FESystem<dim> fe_trial_interior;
     DoFHandler<dim>     dof_handler_trial_interior;
     Vector<double>      solution_interior;
 
-    // Variables for the skeleton and, consequently, the system
+    // The variables for the skeleton and, consequently, the system.
     const FESystem<dim>       fe_trial_skeleton;
     DoFHandler<dim>           dof_handler_trial_skeleton;
     Vector<double>            solution_skeleton;
@@ -427,31 +431,31 @@ namespace Step100
     SparseMatrix<double>      system_matrix;
     AffineConstraints<double> constraints;
 
-    // Variables for the test space
+    // The variables for the test spaces.
     const FESystem<dim> fe_test;
     DoFHandler<dim>     dof_handler_test;
 
-    // Container for the L2 error and other related quantities
+    // A container for the $L^2$ error and other related quantities.
     ConvergenceTable error_table;
 
-    // Coefficient which are used to define the problem
+    // The coefficients which are used to define the plane wave problem.
     const double wavenumber;
     const double theta;
 
-    // Define exctractors that will be used at multiple places to select the
-    // relevant components for the calculation. Those can be created at the
-    // class level since they only depend on the FEM problem we want to solve
-    // and how those specific components are defined in the finite element
-    // space. We therefore follow the same nomanclature as described above.
+    // Some exctractors that will be used at multiple places in the class to
+    // select the relevant components for the calculation. Those can be created
+    // here, at the class level, since they only depend on the FEM problem we
+    // want to solve and how those specific components are defined in the finite
+    // element space.
     const FEValuesExtractors::Vector extractor_u_real;
     const FEValuesExtractors::Vector extractor_u_imag;
     const FEValuesExtractors::Scalar extractor_p_real;
     const FEValuesExtractors::Scalar extractor_p_imag;
 
     // However, the skeleton space does not have the same number of components
-    // because the space $H^{-1/2}$ related to the velocity field is a scalar
-    // field. Consequently, we define the following extractors for the skeleton
-    // space:
+    // as the interior and test space because the space $H^{-1/2}$ related to
+    // the velocity field is a scalar field. Consequently, we need to define
+    // additional extractor specifically for the skeleton spaces.
     const FEValuesExtractors::Scalar extractor_u_hat_real;
     const FEValuesExtractors::Scalar extractor_u_hat_imag;
     const FEValuesExtractors::Scalar extractor_p_hat_real;
@@ -459,7 +463,16 @@ namespace Step100
   };
 
   // @sect3{DPGHelmholtz Constructor}
-  // The Q elements have a degree higher than the others because their
+  // In the constructor, we assign the relevant finite element to each FESystem
+  // following the nomenclature described above in the class description:
+  // - <code>fe_system_trial_interior</code> contains $\Re(\mathbf{u})$,
+  // $\Im(\mathbf{u})$, $\Re(p^*)$, $\Im(p^*)$ ;
+  // - <code>fe_system_trial_skeleton</code> contains $\Re(\hat{u}_n)$,
+  // $\Im(\hat{u}_n)$, $\Re(\hat{p}^*)$, $\Im(\hat{p}^*)$ ;
+  // - <code>fe_system_test</code> contains $\Re(\mathbf{v})$,
+  // $\Im(\mathbf{v})$, $\Re(q)$, $\Im(q)$.
+
+  // Note that the Q elements have a degree higher than the others because their
   // numerotation start at 1 instead of 0.
 
   template <int dim>
@@ -471,24 +484,22 @@ namespace Step100
                         FE_DGQ<dim>(degree) ^ dim,
                         FE_DGQ<dim>(degree),
                         FE_DGQ<dim>(degree))
-    , // (u, u_imag, p, p_imag)
-    dof_handler_trial_interior(triangulation)
+    , dof_handler_trial_interior(triangulation)
     , fe_trial_skeleton(FE_FaceQ<dim>(degree),
                         FE_FaceQ<dim>(degree),
                         FE_TraceQ<dim>(degree + 1),
                         FE_TraceQ<dim>(degree + 1))
-    , // (u_hat_n, u_hat_n_imag, p_hat, p_hat_imag)
-    dof_handler_trial_skeleton(triangulation)
+    , dof_handler_trial_skeleton(triangulation)
     , fe_test(FE_RaviartThomas<dim>(degree + delta_degree),
               FE_RaviartThomas<dim>(degree + delta_degree),
               FE_Q<dim>(degree + delta_degree + 1),
               FE_Q<dim>(degree + delta_degree + 1))
-    , // (v, v_imag, q, q_imag)
-    dof_handler_test(triangulation)
+    , dof_handler_test(triangulation)
     , wavenumber(wavenumber)
     , theta(theta)
 
-    // Here we initialize the FEValuesExtractors that will be used
+    // We also initialize the FEValuesExtractors that will be used according to
+    // our FESystems.
     , extractor_u_real(0)
     , extractor_u_imag(dim)
     , extractor_p_real(2 * dim)
@@ -498,22 +509,23 @@ namespace Step100
     , extractor_u_hat_imag(1)
     , extractor_p_hat_real(2)
     , extractor_p_hat_imag(3)
+
+  // In the constructor we also put some assertions to  check if everything is
+  // correctly defined for our problem. The assertions are to check that the
+  // dimension is 2 because the problem is defined in 3D. We also verifiy that
+  // the delta_degree variable is at least 1 since the degree of the test space
+  // must be at least one degree higher than the trial space. Finally, we check
+  // that the wavenumber is positive since it is the magnitude of the wave
+  // vector and that the angle theta is in the interval [0, $\pi$/2] because
+  // other angles would not be compatible with the current boundary definitions.
   {
-    // Here we check is everything is correctly defined for our problem to work.
-    // The step is only implemented for the 2D case, so we verify the dimension.
     AssertDimension(dim, 2);
 
-    // The degree of the test space must be at least one degree higher than the
-    // trial space so the delta_degree variable needs to be at least 1.
     Assert(delta_degree >= 1,
            ExcMessage("The delta_degree needs to be at least 1."));
 
-    // The wavenumber is the magnitude of the wave vector and must be positive.
     Assert(wavenumber > 0, ExcMessage("The wavenumber must be positive."));
 
-    // The angle theta must be in the interval [0, pi/2]. Other angles are
-    // redundant and would not be compatible with the current boundary
-    // definitions.
     Assert(theta >= 0 && theta <= M_PI / 2,
            ExcMessage("The angle theta must be in the interval [0, pi/2]."));
   }
@@ -531,7 +543,6 @@ namespace Step100
 
     // We print the number of degree of freedoms for each of the DoFHandler as
     // well as adding this information to the ConvergenceTable.
-
     std::cout << std::endl
               << "Number of dofs for the interior: "
               << dof_handler_trial_interior.n_dofs() << std::endl;
@@ -613,20 +624,25 @@ namespace Step100
   };
 
   // @sect3{DPG::assemble_system}
-
+  // Now comes the most significant part of the program where we assemble the
+  // DPG system.
   template <int dim>
   void DPGHelmholtz<dim>::assemble_system(const bool solve_interior)
   {
-    // Define quadrature rules and related variables
-    const QGauss<dim> quadrature_formula(
-      fe_test.degree +
-      1); // The quadrature formula should be the same for both trial and test
-          // and the test have higher polynomial degree so we use it
+    // We first define quadrature rules and related variables. Since the
+    // quadrature formula should be the same for both trial and test FE and that
+    // the test space have higher polynomial degree than the others by
+    // construction, we use it to define the quadrature formula.
+    const QGauss<dim>     quadrature_formula(fe_test.degree + 1);
     const QGauss<dim - 1> face_quadrature_formula(fe_test.degree + 1);
     const unsigned int    n_q_points      = quadrature_formula.size();
     const unsigned int    n_face_q_points = face_quadrature_formula.size();
 
-    // Update the FEValues
+    // We than create the corresponding FEValues and FEFaceValues objects. Note
+    // that only the test space needs gradients because of the ultraweak
+    // formulation. Similarly, because everything is on the same mesh, we only
+    // need to update the quadrature points and JxW values in one of the spaces.
+    // Here we choose the trial space.
     FEValues<dim> fe_values_trial_interior(fe_trial_interior,
                                            quadrature_formula,
                                            update_values |
@@ -651,15 +667,16 @@ namespace Step100
                                             update_quadrature_points);
 
 
-    // Get number of dofs for each type of element
+    // We also create all the relevant matrix and vector to build the DPG
+    // system. To do so we need the number of dofs per cell for each of the
+    // finite element spaces.
     const unsigned int dofs_per_cell_test = fe_test.n_dofs_per_cell();
     const unsigned int dofs_per_cell_trial_interior =
       fe_trial_interior.n_dofs_per_cell();
     const unsigned int dofs_per_cell_trial_skeleton =
       fe_trial_skeleton.n_dofs_per_cell();
 
-    // First we create the system before condensation
-    // We create the DPG local matrices
+    // We create the DPG local matrices before condensation:
     LAPACKFullMatrix<double> G_matrix(dofs_per_cell_test, dofs_per_cell_test);
     LAPACKFullMatrix<double> B_matrix(dofs_per_cell_test,
                                       dofs_per_cell_trial_interior);
@@ -668,15 +685,16 @@ namespace Step100
     LAPACKFullMatrix<double> D_matrix(dofs_per_cell_trial_skeleton,
                                       dofs_per_cell_trial_skeleton);
 
-    // We create the DPG local vectors
+    // We create the DPG local vectors:
     Vector<double> g_vector(dofs_per_cell_trial_skeleton);
     Vector<double> l_vector(dofs_per_cell_test);
 
-    // When building the different matrices, we will need the shapes functions
-    // values, gradient and divergence at the quadrature points for the trial
-    // and test spaces. To avoid the query of the FEValues at each quadrature
-    // point, we will use containers that will store the desired values before
-    // hand.
+    // When building the different above matrices, we will need the shapes
+    // functions values, gradient and divergence at the quadrature points for
+    // the trial and test spaces. To avoid the query of the FEValues at each
+    // quadrature point, we will use containers that will store the desired
+    // quantities before hand.
+
     std::vector<Tensor<1, dim>> v_real(dofs_per_cell_test);
     std::vector<Tensor<1, dim>> v_imag(dofs_per_cell_test);
     std::vector<double>         div_v_real(dofs_per_cell_test);
@@ -700,7 +718,7 @@ namespace Step100
     std::vector<double> p_hat_real(dofs_per_cell_trial_skeleton);
     std::vector<double> p_hat_imag(dofs_per_cell_trial_skeleton);
 
-    // We then create the condensation matrices
+    // We create the condensation matrices:
     LAPACKFullMatrix<double> M1_matrix(dofs_per_cell_trial_interior,
                                        dofs_per_cell_trial_interior);
     LAPACKFullMatrix<double> M2_matrix(dofs_per_cell_trial_interior,
@@ -712,8 +730,8 @@ namespace Step100
     LAPACKFullMatrix<double> M5_matrix(dofs_per_cell_trial_skeleton,
                                        dofs_per_cell_test);
 
-    // During the calculation, we require intermediary matrices that we allocate
-    // here.
+    // During the calculation of matrix vector product, we require intermediary
+    // matrices and vector that we also allocate here.
     LAPACKFullMatrix<double> tmp_matrix(dofs_per_cell_trial_skeleton,
                                         dofs_per_cell_trial_interior);
 
@@ -723,14 +741,15 @@ namespace Step100
     LAPACKFullMatrix<double> tmp_matrix3(dofs_per_cell_trial_skeleton,
                                          dofs_per_cell_test);
 
-    // We also require a temporary condensation vector.
     Vector<double> tmp_vector(dofs_per_cell_trial_interior);
 
-    // We create the matrix and the rhs that will be distributed in the full
-    // system
+    // We create the cell matrix and the rhs that will be distributed in the
+    // full system after the assembly along with the indices mapping.
     FullMatrix<double> cell_matrix(dofs_per_cell_trial_skeleton,
                                    dofs_per_cell_trial_skeleton);
     Vector<double>     cell_skeleton_rhs(dofs_per_cell_trial_skeleton);
+    std::vector<types::global_dof_index> local_dof_indices(
+      dofs_per_cell_trial_skeleton);
 
     // Finally, when reconstructing the interior solution from the skeleton, we
     // require additional vectors that we allocate here.
@@ -738,27 +757,22 @@ namespace Step100
     Vector<double> cell_interior_solution(dofs_per_cell_trial_interior);
     Vector<double> cell_skeleton_solution(dofs_per_cell_trial_skeleton);
 
-    // Create the dofs indices mapping container
-    // We recall that the final unknowns of the system are the skeleton
-    // unknowns.
-    std::vector<types::global_dof_index> local_dof_indices(
-      dofs_per_cell_trial_skeleton);
-
-    // We also define the imaginary unit and two complex constant that will be
-    // used during the following assembly. Note that even if the system and
-    // matrix that we build are real, we still make use of the standard library
-    // complex operation to facilitate some computations as it is done in
-    // step-81.
+    // Now, before performing computation, we also define the imaginary unit and
+    // two complex constant that will be used during the following assembly.
+    // Note that even if the system and matrix that we build are real, we still
+    // make use of the standard library complex operation to facilitate some
+    // computations as it is done in step-81.
     constexpr std::complex<double> imag(0., 1.);
     const std::complex<double>     iomega      = imag * wavenumber;
     const std::complex<double>     iomega_conj = conj(iomega);
 
-    // We first loop over the cells of the triangulation. We will choose to loop
-    // on using the DofHandler of the trial space because it is the natural
-    // choice since it is where we will compute our the solution.
+    // As it is standard we first loop over the cells of the triangulation. Here
+    // we have the choice of the DoFHanlder to perform this loop. We will choose
+    // to loop using the one of the trial space in the interior because we it
+    // felt more natural.
     for (const auto &cell : dof_handler_trial_interior.active_cell_iterators())
       {
-        // We first reinitialize the FEValues objects to the current cell.
+        // We reinitialize the FEValues objects to the current cell.
         fe_values_trial_interior.reinit(cell);
 
         // However, we will also need to reinitialize the FEValues for the test
@@ -784,7 +798,7 @@ namespace Step100
         l_vector     = 0;
 
         // We also need reinitialize the $M_1$ condensation matrix between each
-        // cell to get rid of its inverse status.
+        // iteration on cell to get rid of its inverse status.
         M1_matrix = 0;
 
         // As it is normally done, we then loop over all quadrature points of
@@ -829,12 +843,12 @@ namespace Step100
                   fe_values_trial_interior[extractor_p_imag].value(k, q_point);
               }
 
-            // Loop over test space dofs
+            // We are now ready to loop on our test space indices "i".
             for (const auto i : fe_values_test.dof_indices())
               {
-                // Define the necessary complex test basis functions, note the
-                // minus sign when we are building the conjugate of the
-                // functions.
+                // Using the precomputed quantities, we compute the necessary
+                // complex test basis functions. Note that a minus sign is added
+                // because we are building the conjugate of the functions.
                 const auto v_i_conj = v_real[i] - imag * v_imag[i];
 
                 const auto div_v_i_conj = div_v_real[i] - imag * div_v_imag[i];
@@ -844,14 +858,15 @@ namespace Step100
                 const auto grad_q_i_conj =
                   grad_q_real[i] - imag * grad_q_imag[i];
 
-                // Get the information on wich element the dof is for the test
-                // space. This will help to build the right equation at the
-                // right place in the matrix.
+                // When building the different part of the matrices, we need to
+                // know to what finite element the current dof is associated
+                // with. The following command does exactly that and get the
+                // information on wich element the dof is for the test space.
                 const unsigned int current_element_test_i =
                   fe_test.system_to_base_index(i).first.first;
 
                 // If we are in the test space for pressure, we build the load
-                // vector. For our test case this is null.
+                // vector. For our plane wave problem this source term is null.
                 if ((current_element_test_i == 2) ||
                     (current_element_test_i == 3))
                   {
@@ -859,11 +874,14 @@ namespace Step100
                     l_vector(i) += 0;
                   }
 
-                // We will first construct the matrix G, the Gram matrix, so
-                // will loop over test space dofs a second time.
+                // The only to matrices that have some value in the interior of
+                // the cell is the $\mathbf{G}$ and $\mathbf{B}$ matrices. We
+                // will first construct the Gram matrix, so will loop over test
+                // space dofs a second time.
                 for (const auto j : fe_values_test.dof_indices())
                   {
-                    // Create the test basis functions
+                    // Again, we create the test basis functions get the
+                    // information on wich element the dof is.
                     const auto v_j = v_real[j] + imag * v_imag[j];
 
                     const auto div_v_j = div_v_real[j] + imag * div_v_imag[j];
@@ -873,13 +891,19 @@ namespace Step100
                     const auto grad_q_j =
                       grad_q_real[j] + imag * grad_q_imag[j];
 
-                    // Again, we get the information on wich element the dof is
                     const unsigned int current_element_test_j =
                       fe_test.system_to_base_index(j).first.first;
 
-                    // In what follows, we will build the corresponding terms
-                    // for each combination of test space. We first start with
-                    // both test space in v test function.
+                    // Now, using the information of which finite element is
+                    // owning the dof $i$ and the dof $j$, we can assemble the
+                    // desired terms.
+
+                    // For example, if both $i$ and $j$ are in test space
+                    // associted to the test function $\mathbf{v}$, we build the
+                    // terms $(\mathbf{v}, \overline{\mathbf{v}})_{\Omega_h} +
+                    // (\nabla \cdot \mathbf{v}, \overline{\nabla \cdot
+                    // \mathbf{v}})_{\Omega_h} + (\overline{i\omega}\mathbf{v},
+                    // i\omega \overline{ \mathbf{v}})_{\Omega_h}$ :
                     if (((current_element_test_i == 0) ||
                          (current_element_test_i == 1)) &&
                         ((current_element_test_j == 0) ||
@@ -891,8 +915,11 @@ namespace Step100
                            JxW)
                             .real();
                       }
-                    // If dof "i" in v test function and dof "j" in q test
-                    // function.
+                    // If the dof "i" is in test function $mathbf{v}$ and dof
+                    // "j" in test function $q$ we build the terms $(\nabla q,
+                    // i\omega \overline{ \mathbf{v}})_{\Omega_h} + (\overline{
+                    // i\omega} q, \overline{\nabla \cdot
+                    // \mathbf{v}})_{\Omega_h}$ :
                     else if (((current_element_test_i == 0) ||
                               (current_element_test_i == 1)) &&
                              ((current_element_test_j == 2) ||
@@ -904,8 +931,11 @@ namespace Step100
                            JxW)
                             .real();
                       }
-                    // If dof "i" in q test function and dof "j" in v test
-                    // function.
+                    // If the dof "i" is in test function $q$ and the dof "j" is
+                    // in the test function $\mathbf{v}$, we build the terms
+                    // (\overline{i\omega} \mathbf{v}, \overline{\nabla
+                    // q})_{\Omega_h} + (\nabla \cdot \mathbf{v}, i\omega
+                    // \overline{ q})_{\Omega_h} :
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_test_j == 0) ||
@@ -917,7 +947,10 @@ namespace Step100
                            JxW)
                             .real();
                       }
-                    // If both in q test function.
+                    // Finally, if both in test functions are in $q$, we build
+                    // the terms $(q, \overline{q})_{\Omega_h} + (\nabla q,
+                    // \overline{\nabla q})_{\Omega_h} + (\overline{ i\omega} q,
+                    // i\omega\overline{ q})_{\Omega_h}$:
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_test_j == 2) ||
@@ -931,22 +964,25 @@ namespace Step100
                       }
                   }
 
-                // Now we will build the B matrix, the one associated to the
-                // operator of our problem on the interior element. So we loop
-                // over trial space dofs on "j".
+                // Now we will build the matrix $\mathbf{B}$, the one associated
+                // to the operator of our problem on the interior element. So we
+                // loop over trial space dofs on "j" and preform a similar
+                // procedure as for the Gram matrix.
                 for (const auto j : fe_values_trial_interior.dof_indices())
                   {
-                    // Create the trial basis functions
+                    // We create the trial basis functions.
                     const auto u_j = u_real[j] + imag * u_imag[j];
 
                     const auto p_j = p_real[j] + imag * p_imag[j];
 
-                    // Again, we get the information to map the index to the
+                    // Again, we get the information to map the dof to the
                     // right shape function.
                     const unsigned int current_element_trial_j =
                       fe_trial_interior.system_to_base_index(j).first.first;
 
-                    // If dof "i" in v test function and dof "j" in u trial.
+                    // If dof "i" in test function $\mathbf{v}$ and dof "j" in
+                    // trial function $\mathbf{u}$ we build the term $(i\omega
+                    // \mathbf{u}, \overline{\mathbf{v}})_{\Omega_h}$:
                     if (((current_element_test_i == 0) ||
                          (current_element_test_i == 1)) &&
                         ((current_element_trial_j == 0) ||
@@ -955,7 +991,9 @@ namespace Step100
                         B_matrix(i, j) +=
                           ((iomega * u_j * v_i_conj) * JxW).real();
                       }
-                    // If dof "i" in v test function and dof "j" in p trial.
+                    // If dof "i" in test function $\mathbf{v}$ and dof "j" in
+                    // trial function $p$ we build the term $ -(p^*,
+                    // \overline{\nabla \cdot \mathbf{v}})_{\Omega_h}$:
                     else if (((current_element_test_i == 0) ||
                               (current_element_test_i == 1)) &&
                              ((current_element_trial_j == 2) ||
@@ -964,7 +1002,9 @@ namespace Step100
                         B_matrix(i, j) -= ((p_j * div_v_i_conj) * JxW).real();
                       }
 
-                    // If dof "i" in q test function and dof "j" in u trial.
+                    // If dof "i" in test function $q$ and dof "j" in trial
+                    // function $\mathbf{u}$ we build the term $-(\mathbf{u},
+                    // \overline{\nabla q})_{\Omega_h}$:
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_trial_j == 0) ||
@@ -972,7 +1012,9 @@ namespace Step100
                       {
                         B_matrix(i, j) -= ((u_j * grad_q_i_conj) * JxW).real();
                       }
-                    // If dof "i" in q test function and dof "j" in p
+                    // If dof "i" in test function $q$ and dof "j" in trial
+                    // function $p$ we build the term $(i\omega p^*,
+                    // \overline{q})_{\Omega_h}$:
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_trial_j == 2) ||
@@ -984,38 +1026,66 @@ namespace Step100
                   }
               }
           }
-        // Loop over all face
+        // Now that we have built interior terms in our matrices, we will do the
+        // same for the skeleton terms. Similarly, we choose loop on the
+        // skeleton trial space faces because it felt more natural.
         for (const auto &face : cell_skeleton->face_iterators())
           {
-            // Reinitialization
+            // We reinitialize the FEFaceValues objects to the current faces.
             fe_face_values_test.reinit(cell_test, face);
             fe_values_trial_skeleton.reinit(cell_skeleton, face);
 
-            // Get face number and boundary id, if not at boundary use the flag
-            // -1.
+            // In what follow we will need to add terms that are only relevant
+            // for the Robin boundary conditiont. Consequently, we get face
+            // boundary id and assign a -1 value if the face is not at boundary.
+            // We also get the face number that will be used later on to
+            // determine the correct normal orientation of the fluxes.
             const auto face_no = cell->face_iterator_to_index(face);
             const auto current_boundary_id =
               face->at_boundary() ? face->boundary_id() : -1;
 
-            // Set the boundary factor for the Robin boundary conditions.
-            const double k_ratio = (current_boundary_id == 1) ? cos(theta) :
-                                   (current_boundary_id == 3) ? sin(theta) :
-                                                                1.;
-            // Initialize the flux orientation
+            // The Robin boundary condition in our plane wave problem have a
+            // factor $\frac{\mathbf{k} \cot \mathbf{n}}{\omega}$. However,
+            // $\omega = k c_s$ with $c_s=1$ and $\mathbf{k} \cot \mathbf{n}$ is
+            // either $k\cos{\theta}$ for the right boundary or $k\sin{\theta}$
+            // for the top boundary because of our domain geometry. The
+            // wavenumber simplifies and we are left with the cosin and sin for
+            // the value of this factor, which we compute in advance according
+            // to the just obtained boundary id. Note that this implies that the
+            // term is always real for our case and
+            // $\overline{\frac{k_n}{\omega}} = \frac{k_n}{\omega}$ in what
+            // follows.
+            const double kn_omega = (current_boundary_id == 1) ? cos(theta) :
+                                    (current_boundary_id == 3) ? sin(theta) :
+                                                                 1.;
+            // Now, the FE_FaceQ elements describe the trace of H(div)
+            // conforming elements. However, they do not have an orientation
+            // embedded in them. Therefore, to make sure that the flux that
+            // cross a face in a given cell is equal to the flux that cross the
+            // same face in the adjacent cell (for which the normal is
+            // opposite), we add a factor that will be either 1 or -1. Since
+            // this type of element is only continuous across faces, we can
+            // create an orientation rule that only depends on a given face
+            // without the need for a global cell orientation as for Nédélec
+            // elements. The rule used here is based on the cell index. The flux
+            // is always oriented from the lowest cell index to the highest cell
+            // index. At, boundaries, we follow the standard convention that the
+            // normal is oriented outward from the domain so the flux is equal
+            // to 1.
             double flux_orientation = 0.;
 
-            // Loop over all face quadrature points
+            // As for the cell loop, we go over the quadrature points, but for
+            // the face this time.
             for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point)
               {
                 // Again, we assign the constant values and fill the shape
-                // values containers.
+                // values containers but for the face variables this time.
                 const auto &normal =
                   fe_values_trial_skeleton.normal_vector(q_point);
                 const double &JxW_face = fe_values_trial_skeleton.JxW(q_point);
 
                 for (unsigned int k : fe_face_values_test.dof_indices())
                   {
-                    // Get the real and imaginary parts of the test functions
                     v_face_real[k] =
                       fe_face_values_test[extractor_u_real].value(k, q_point);
                     v_face_imag[k] =
@@ -1027,8 +1097,6 @@ namespace Step100
                   }
                 for (unsigned int k : fe_values_trial_skeleton.dof_indices())
                   {
-                    // Get the real and imaginary parts of the trial face
-                    // functions
                     u_hat_real[k] =
                       fe_values_trial_skeleton[extractor_u_hat_real].value(
                         k, q_point);
@@ -1043,29 +1111,29 @@ namespace Step100
                         k, q_point);
                   }
 
-                // Loop over the test space dofs
+                // We loop over the test space face dofs with indices "i",
+                // create the face test basis functions and get the information
+                // to map the index to the right shape function.
                 for (const auto i : fe_face_values_test.dof_indices())
                   {
-                    // Create the face test basis functions
                     const auto v_n_i_conj =
                       normal * (v_face_real[i] - imag * v_face_imag[i]);
 
                     const auto q_i_conj =
                       q_face_real[i] - imag * q_face_imag[i];
 
-                    // Get the information to map the index to the right
-                    // shape function
                     const unsigned int current_element_test_i =
                       fe_test.system_to_base_index(i).first.first;
 
 
-                    // If we are at one of the two robin boundary, we need to
-                    // add additional terms to the Gram matrix.
+                    // We then verify if we are at one of the two Robin
+                    // boundaries. If so, we add additional terms to the Gram
+                    // matrix using the same procedure as for the interior
+                    // terms.
                     if (current_boundary_id == 1 || current_boundary_id == 3)
                       {
                         for (const auto j : fe_face_values_test.dof_indices())
                           {
-                            // Create the face test basis functions
                             const auto v_n_j =
                               normal * (v_face_real[j] + imag * v_face_imag[j]);
 
@@ -1075,42 +1143,52 @@ namespace Step100
                             const unsigned int current_element_test_j =
                               fe_test.system_to_base_index(j).first.first;
 
+
+                            // We build $ \langle \mathbf{v} \cdot \mathbf{n},
+                            //  \overline{\mathbf{v} \cdot \mathbf{n}}
+                            //  \rangle_{\Gamma_1 \cup \Gamma_3}$ :
                             if (((current_element_test_i == 0) ||
                                  (current_element_test_i == 1)) &&
                                 ((current_element_test_j == 0) ||
                                  (current_element_test_j == 1)))
                               {
-                                // (v_n_j, v_n_i*)
                                 G_matrix(i, j) +=
                                   (v_n_j * v_n_i_conj * JxW_face).real();
                               }
+                            //  We build $\langle
+                            //  \overline{\frac{k_n}{\omega}}q,
+                            //  \overline{\mathbf{v} \cdot \mathbf{n}}
+                            //  \rangle_{\Gamma_1 \cup \Gamma_3}$ :
                             else if (((current_element_test_i == 0) ||
                                       (current_element_test_i == 1)) &&
                                      ((current_element_test_j == 2) ||
                                       (current_element_test_j == 3)))
                               {
-                                // (k_n/ k * q_j, v_n_i*)
                                 G_matrix(i, j) +=
-                                  (k_ratio * q_j * v_n_i_conj * JxW_face)
+                                   kn_omega * q_j * v_n_i_conj * JxW_face)
                                     .real();
                               }
+                            // We build $\langle \mathbf{v} \cdot \mathbf{n},
+                            // \frac{k_n}{\omega}\overline{q} \rangle_{\Gamma_1
+                            // \cup \Gamma_3}$ :
                             else if (((current_element_test_i == 2) ||
                                       (current_element_test_i == 3)) &&
                                      ((current_element_test_j == 0) ||
                                       (current_element_test_j == 1)))
                               {
-                                // (v_n_j, k_n/ k * q_i_conj)
                                 G_matrix(i, j) +=
-                                  (v_n_j * k_ratio * q_i_conj * JxW_face)
+                                  (v_n_j * kn_omega * q_i_conj * JxW_face)
                                     .real();
                               }
+                            // We build $\langle \overline{\frac{k_n}{\omega}}q,
+                            // \frac{k_n}{\omega}\overline{q} \rangle_{\Gamma_1
+                            // \cup \Gamma_3}$ :
                             else if (((current_element_test_i == 2) ||
                                       (current_element_test_i == 3)) &&
                                      ((current_element_test_j == 2) ||
                                       (current_element_test_j == 3)))
                               {
-                                // (k_n/ k * q_j, k_n/ k * q_i_conj)
-                                G_matrix(i, j) += (k_ratio * q_j * k_ratio *
+                                G_matrix(i, j) += (kn_omega * q_j * kn_omega *
                                                    q_i_conj * JxW_face)
                                                     .real();
                               }
@@ -1118,22 +1196,23 @@ namespace Step100
                       }
 
 
-                    // Loop over trial space dofs
+                    // Again, same procedur, we construct the $\hat{\mathbf{B}}$
+                    // matrix and to do so, we loop over trial space dofs on
+                    // "j".
                     for (const auto j : fe_values_trial_skeleton.dof_indices())
                       {
-                        // Create the face trial basis functions
                         const auto u_hat_n_j =
                           u_hat_real[j] + imag * u_hat_imag[j];
 
                         const auto p_hat_j =
                           p_hat_real[j] + imag * p_hat_imag[j];
 
-                        // Get the information to map the index to the right
-                        // shape function
                         const unsigned int current_element_trial_j =
                           fe_trial_skeleton.system_to_base_index(j).first.first;
 
-                        // If in Raviart-thomas element and FE_FaceQ for p
+                        // We build the term $\left\langle \hat{p}^*,
+                        // \overline{\mathbf{v} \cdot \mathbf{n}}
+                        // \right\rangle_{\partial \Omega_h}$:
                         if (((current_element_test_i == 0) ||
                              (current_element_test_i == 1)) &&
                             ((current_element_trial_j == 2) ||
@@ -1143,13 +1222,15 @@ namespace Step100
                               ((p_hat_j * v_n_i_conj) * JxW_face).real();
                           }
 
-                        // If in Q element and FE_FaceQ for u_n
+                        // We build the term $\left\langle \hat{u}_n,
+                        // \overline{q} \right\rangle_{\partial \Omega_h}$ :
                         else if (((current_element_test_i == 2) ||
                                   (current_element_test_i == 3)) &&
                                  ((current_element_trial_j == 0) ||
                                   (current_element_trial_j == 1)))
                           {
-                            // Get the neighbor cell id
+                            // Here is where we find the flux orientation based
+                            // on the rule described above.
                             int neighbor_cell_id = -1;
                             if (face->at_boundary())
                               {
@@ -1161,10 +1242,7 @@ namespace Step100
                                   cell->neighbor(face_no)->index();
                               }
 
-                            // Get current cell id
                             const auto current_cell_id = cell->index();
-
-
                             if (neighbor_cell_id > current_cell_id)
                               {
                                 flux_orientation = 1.;
@@ -1174,7 +1252,6 @@ namespace Step100
                                 flux_orientation = -1.;
                               }
 
-                            // (u_hat_n, q*)
                             B_hat_matrix(i, j) +=
                               (flux_orientation * u_hat_n_j * q_i_conj *
                                JxW_face)
@@ -1183,30 +1260,32 @@ namespace Step100
                       }
                   }
 
-                // Now we will build the g_vector and D_matrix, which are only
-                // defined on the Robin boundaries.
+                // Finally, we will build the $\mathbf{D}$ matrix and the source
+                // term vector $\mathbf{g}$ for the Robin boundaries. We first
+                // verify if the face is at one of them.
                 if (current_boundary_id == 1 || current_boundary_id == 3)
                   {
-                    // Initialize the flux orientation
+                    // We adjust the flux orientation, but because we are at a
+                    // boundary, it is always in the same direction as the
+                    // normal.
                     flux_orientation = 1.;
 
-                    // Update the g_vector and D_matrix
+                    // We loop over the trial space dofs on "i" and create the
+                    // associated trial basis functions.
                     for (const auto i : fe_values_trial_skeleton.dof_indices())
                       {
-                        // Create the face trial basis functions
                         const auto u_hat_n_i_conj =
                           u_hat_real[i] - imag * u_hat_imag[i];
 
                         const auto p_hat_i_conj =
                           p_hat_real[i] - imag * p_hat_imag[i];
 
-                        // Get the information to map the index to the right
-                        // shape function
                         const unsigned int current_element_trial_i =
                           fe_trial_skeleton.system_to_base_index(i).first.first;
 
-                        // No source terms, Sommerfeld B.C., so g_vector is
-                        // zero
+                        // As for the load vector, we assemble the source terms
+                        // for the Robin boundary even if it is null to
+                        // illustrate the procedure.
                         if ((current_element_trial_i == 0) ||
                             (current_element_trial_i == 1))
                           {
@@ -1217,125 +1296,147 @@ namespace Step100
                                  (current_element_trial_i == 3))
                           {
                             g_vector(i) +=
-                              ((0.) * k_ratio * p_hat_i_conj).real() * JxW_face;
+                              ((0.) * kn_omega * p_hat_i_conj).real() *
+                              JxW_face;
                           }
 
-                        // Loop over trial space dofs
+                        // The matrix $\mathbf{D}$ put in relation the trial
+                        // skeleton space with itself so we loop again on the
+                        // trial space dofs on "j".
                         for (const auto j :
                              fe_values_trial_skeleton.dof_indices())
                           {
-                            // Create the face trial basis functions
                             const auto u_hat_n_j =
                               u_hat_real[j] + imag * u_hat_imag[j];
 
                             const auto p_hat_j =
                               p_hat_real[j] + imag * p_hat_imag[j];
 
-                            // Get the information to map the index to the
-                            // right shape function
                             const unsigned int current_element_trial_j =
                               fe_trial_skeleton.system_to_base_index(j)
                                 .first.first;
 
-                            // If in FE element and FE_FaceQ for p
+                            // We build the term $- \langle \hat{u}_n,
+                            // \overline{\hat{u}_n} \rangle_{\Gamma_1 \cup
+                            // \Gamma_3}$:
                             if (((current_element_trial_i == 0) ||
                                  (current_element_trial_i == 1)) &&
                                 ((current_element_trial_j == 0) ||
                                  (current_element_trial_j == 1)))
                               {
-                                // -(u_hat_n_j, u_hat_n_i*)
                                 D_matrix(i, j) -=
                                   (flux_orientation * u_hat_n_j *
                                    flux_orientation * u_hat_n_i_conj * JxW_face)
                                     .real();
                               }
+                            // We build the term $ \langle \hat{u}_n,
+                            // \overline{\frac{k_n}{\omega} \hat{p}^*}
+                            // \rangle_{\Gamma_1 \cup \Gamma_3}$:
                             else if (((current_element_trial_i == 0) ||
                                       (current_element_trial_i == 1)) &&
                                      ((current_element_trial_j == 2) ||
                                       (current_element_trial_j == 3)))
                               {
-                                // (k_n/ k * p_hat_j , u_hat_n_i*)
                                 D_matrix(i, j) +=
-                                  (k_ratio * p_hat_j * flux_orientation *
+                                  (kn_omega * p_hat_j * flux_orientation *
                                    u_hat_n_i_conj * JxW_face)
                                     .real();
                               }
+                            // We build the term $\langle \frac{k_n}{\omega}
+                            // \hat{p}^*, \overline{\hat{u}_n} \rangle_{\Gamma_1
+                            // \cup \Gamma_3}$:
                             else if (((current_element_trial_i == 2) ||
                                       (current_element_trial_i == 3)) &&
                                      ((current_element_trial_j == 0) ||
                                       (current_element_trial_j == 1)))
                               {
-                                // (u_hat_n_j, k_n/ k * p_hat_i_conj )
                                 D_matrix(i, j) +=
-                                  (flux_orientation * u_hat_n_j * k_ratio *
+                                  (flux_orientation * u_hat_n_j * kn_omega *
                                    p_hat_i_conj * JxW_face)
                                     .real();
                               }
+                            // We build the term $- \langle \frac{k_n}{\omega}
+                            // \hat{p}^*, \overline{\frac{k_n}{\omega}
+                            // \hat{p}^*} \rangle_{\Gamma_1 \cup \Gamma_3}$:
                             else if (((current_element_trial_i == 2) ||
                                       (current_element_trial_i == 3)) &&
                                      ((current_element_trial_j == 2) ||
                                       (current_element_trial_j == 3)))
                               {
-                                // (k_n/ k * p_hat_j, k_n/ k * p_hat_i_conj)
-                                D_matrix(i, j) -= (k_ratio * p_hat_j * k_ratio *
-                                                   p_hat_i_conj * JxW_face)
-                                                    .real();
+                                D_matrix(i, j) -=
+                                  (kn_omega * p_hat_j * kn_omega *
+                                   p_hat_i_conj * JxW_face)
+                                    .real();
                               }
                           }
                       }
                   }
               }
           }
-        // Compute the condensation matrices
-        G_matrix.invert(); // G^-1
+        // Finally, after having assembled all the matrices and vectors, be
+        // build the condensed version of the system.
 
-        // M4 matrix B^dagger * G^-1
+        // We only need the inverse of the Gram matrix $\mathbf{G}$, so we
+        // invert it.
+        G_matrix.invert();
+
+        // We construct $M_4 = \mathbf{B}^\dagger \mathbf{G}^{-1}$ and // $M_5 =
+        // \hat{\mathbf{B}}^\dagger \mathbf{G}^{-1}$ with it:
         B_matrix.Tmmult(M4_matrix, G_matrix);
-
-        // M5 matrix B_hat^dagger * G^-1
         B_hat_matrix.Tmmult(M5_matrix, G_matrix);
 
-        // M1 matrix B^dagger * G^-1 * B
+        // Then using M4 we compute the condensed matrix $M_1 =
+        // \mathbf{B}^\dagger \mathbf{G}^{-1} \mathbf{B}$ and $M_2 =
+        // \mathbf{B}^\dagger \mathbf{G}^{-1} \hat{\mathbf{B}}$ :
         M4_matrix.mmult(M1_matrix, B_matrix);
-
-        // M1 matrix inverse
-        M1_matrix.invert();
-
-        // M2 matrix B^dagger * G^-1 * B_hat
         M4_matrix.mmult(M2_matrix, B_hat_matrix);
 
-        // M3 matrix B_hat^dagger * G^-1 * B_hat - D
+        // We also compute the matrix $M_3 = \hat{\mathbf{B}}^\dagger
+        // \mathbf{G}^{-1} \hat{\mathbf{B}} - \mathbf{D}$ using $M_5$ and
+        // $\mathbf{D}$:
         M5_matrix.mmult(M3_matrix, B_hat_matrix);
         M3_matrix.add(-1.0, D_matrix);
 
-        if (solve_interior)
-          { // Solve the interior problem
+        // Finally, as for the $G$ matrix, we invert the $M_1$ matrix:
+        M1_matrix.invert();
 
-            // Get the solution vector
+        // If the flag solve interior is set to true, we have already the
+        // solution on the skeleton and only need to perform $u_h = M_1^{-1}
+        // (M_4 l - M_2 \hat{u}_h)$ on each cell.
+        if (solve_interior)
+          {
+            // We first fet the solution vector for this cell.
             cell_skeleton->get_dof_values(solution_skeleton,
                                           cell_skeleton_solution);
 
-            // Solve the interior problem
+            // Then we do the matrix-vector product to obtain the interior
+            // unknowns.
             M2_matrix.vmult(tmp_vector, cell_skeleton_solution);
             M4_matrix.vmult(cell_interior_rhs, l_vector);
             cell_interior_rhs -= tmp_vector;
             M1_matrix.vmult(cell_interior_solution, cell_interior_rhs);
 
-            // Map the interior solution to the global solution
+            // Finally, we map the cell interior solution to the global interior
+            // solution.
             cell->distribute_local_to_global(cell_interior_solution,
                                              solution_interior);
           }
+        // If the flag solve interior is set to false, we have to compute the
+        // local matrix and the local rhs for the condensed system.
         else
-          { // Send the local matrices to the global matrix
-
-            // Cell matrix M3 - M2_dagger * M1_inv * M2
+          {
+            // So the cell matrix is obtained with the formula $(M_3 -
+            // M_2^\dagger M_1^{-1} M_2)$:
             M2_matrix.Tmmult(tmp_matrix, M1_matrix);
             tmp_matrix.mmult(tmp_matrix2, M2_matrix);
             tmp_matrix2.add(-1.0, M3_matrix);
             tmp_matrix2 *= -1.0;
-            cell_matrix = tmp_matrix2; // LAPACK to full matrix
+            // This line is used to convert the LAPACK matrix to a full matrix
+            // so we can perform the distribution to the global system below.
+            cell_matrix = tmp_matrix2;
 
-            // Cell rhs (M5-M2_dagger * M1_inv M4)l - g
+            // Then we compute the cell rhs using $(M_5 - M_2^\dagger M_1^{-1}
+            // M_4)l - g$.
             tmp_matrix.mmult(tmp_matrix3, M4_matrix);
             M5_matrix.add(-1.0, tmp_matrix3);
             M5_matrix.vmult(cell_skeleton_rhs, l_vector);

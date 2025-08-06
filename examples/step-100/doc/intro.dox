@@ -217,145 +217,7 @@ In the above, we choose the sign so that the whole system remains positive defin
 @f{align*}{
     \|(\mathbf{v}, q)\|^2_E = \|\nabla q +\overline{i\omega}\mathbf{v}\|^2 + \|\overline{i\omega}q + \nabla \cdot \mathbf{v}\|^2 + \|\mathbf{v}\|^2 + \|q\|^2 + \|\mathbf{v} \cdot \mathbf{n} + \overline{\frac{k_n}{\omega}} q||^2_{\Gamma_1 \cup \Gamma_3}.
 @f}
-We are now finally ready to build out all our relevant matrix and vector for our system.
-@f{equation*}{
-\mathbf{B} =
-\begin{array}{c@{\quad}c}
-  &
-  \begin{array}{cc}
-    \mathbf{u}     &    p^*
-  \end{array} \\
-  \begin{array}{c}
-    \mathbf{v} \\
-    q
-  \end{array} &
-  \begin{pmatrix}
-    (i\omega \mathbf{u}, \overline{\mathbf{v}})_{\Omega_h} & -(p^*, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h} \\
-    -(\mathbf{u}, \overline{\nabla q})_{\Omega_h} & \left(i\omega p^*, \overline{q}\right)_{\Omega_h}
-  \end{pmatrix}
-\end{array}
-@f}
-@f{equation*}{
-\mathbf{\hat{B}} =
-\begin{array}{c@{\quad}c}
-  &
-  \begin{array}{cc}
-    \hat{u}_n & \hat{p}^*
-  \end{array} \\
-  \begin{array}{c}
-    \mathbf{v} \\
-    q
-  \end{array} &
-  \begin{pmatrix}
-    0 & \left\langle \hat{p}^*, \overline{\mathbf{v} \cdot \mathbf{n}} \right\rangle_{\partial \Omega_h} \\
-    \left\langle \hat{u}_n, \overline{q} \right\rangle_{\partial \Omega_h} & 0
-  \end{pmatrix}
-\end{array}
-@f}
-@f{equation*}{
-\mathbf{G} =
-\begin{array}{c@{\quad}c}
-  &
-  \begin{array}{cc}
-    \mathbf{v} & q
-  \end{array} \\
-  \begin{array}{c}
-    \mathbf{v} \\
-    q
-  \end{array} &
-  \begin{pmatrix}
-
-      (\mathbf{v}, \overline{\mathbf{v}})_{\Omega_h}
-      + (\nabla \cdot \mathbf{v}, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h}
-      + (\overline{i\omega}\mathbf{v}, i\omega \overline{ \mathbf{v}})_{\Omega_h}
-      + \langle \mathbf{v} \cdot \mathbf{n}, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\Gamma_1 \cup \Gamma_3}
-
-    &
-
-      (\nabla q, i\omega \overline{ \mathbf{v}})_{\Omega_h}
-      + (\overline{ i\omega} q, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h}
-      + \langle \overline{\frac{k_n}{\omega}}q, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\Gamma_1 \cup \Gamma_3}
-
-    \\
-
-      (\overline{i\omega} \mathbf{v}, \overline{\nabla q})_{\Omega_h}
-      + (\nabla \cdot \mathbf{v}, i\omega \overline{ q})_{\Omega_h}
-      + \langle \mathbf{v} \cdot \mathbf{n}, \frac{k_n}{\omega}\overline{q} \rangle_{\Gamma_1 \cup \Gamma_3}
-
-    &
-
-      (q, \overline{q})_{\Omega_h}
-      + (\nabla q, \overline{\nabla q})_{\Omega_h}
-      + (\overline{ i\omega} q, i\omega\overline{ q})_{\Omega_h}
-      + \langle \overline{\frac{k_n}{\omega}}q, \frac{k_n}{\omega}\overline{q} \rangle_{\Gamma_1 \cup \Gamma_3}
-
-  \end{pmatrix}
-\end{array}
-@f}
-@f{equation*}{
-\mathbf{D} =
-\begin{array}{c@{\quad}c}
-  &
-  \begin{array}{cc}
-    \hat{u}_n & \hat{p}^*
-  \end{array} \\
-  \begin{array}{c}
-    \hat{u}_n \\
-    \hat{p}^*
-  \end{array} &
-  \begin{pmatrix}
-    \begin{aligned}
-      & - \langle \hat{u}_n, \overline{\hat{u}_n} \rangle_{\Gamma_1 \cup \Gamma_3}
-    \end{aligned}
-    &
-    \begin{aligned}
-      & \langle \hat{u}_n, \overline{\frac{k_n}{\omega} \hat{p}^*} \rangle_{\Gamma_1 \cup \Gamma_3}
-    \end{aligned}
-    \\
-    \begin{aligned}
-      & \langle \frac{k_n}{\omega} \hat{p}^*, \overline{\hat{u}_n} \rangle_{\Gamma_1 \cup \Gamma_3}
-    \end{aligned}
-    &
-    \begin{aligned}
-      & - \langle \frac{k_n}{\omega} \hat{p}^*, \overline{\frac{k_n}{\omega} \hat{p}^*} \rangle_{\Gamma_1 \cup \Gamma_3}
-    \end{aligned}
-  \end{pmatrix}
-\end{array}
-@f}
-@f{equation*}{
-\mathbf{l} =
-\begin{array}{c@{\quad}c}
-  &
-  \begin{array}{c}
-    f
-  \end{array} \\
-  \begin{array}{c}
-    \mathbf{v} \\
-    q
-  \end{array} &
-  \begin{pmatrix}
-    0 \\
-    ( f, \overline{q} )_{\Omega_h}
-  \end{pmatrix}
-\end{array}
-@f}
-@f{equation*}{
-\mathbf{g} =
-\begin{array}{c@{\quad}c}
-  &
-  \begin{array}{c}
-    f
-  \end{array} \\
-  \begin{array}{c}
-    \hat{u}_n \\
-    \hat{p}^*
-  \end{array} &
-  \begin{pmatrix}
-    - \langle g_R, \overline{\hat{u}_n} \rangle_{\Gamma_1 \cup \Gamma_3} \\
-    \langle g_R, \overline{ \dfrac{k_n}{\omega} \hat{p}^* } \rangle_{\Gamma_1 \cup \Gamma_3}
-  \end{pmatrix}
-\end{array}
-@f}
+We are now finally ready to build out the following DPG system for our problem:
 
 
 @f{equation*}{
@@ -429,11 +291,11 @@ Finally, because of the block of zeroes in the DPG system matrix, it is common t
 @f}
 where $u_h = \{\mathbf{u},p^*\}$ and $\hat{u}_h = \{\hat{u}_n,\hat{p}^*\}$. To avoid extra computational cost when solving the matrix, the system can be further condensed to only solve for the interfaces unknowns since interior unknowns are discontinuous across element. By posing the following:
 @f{align*}{
- & M_1 = B^\dagger G^{-1}B, & M_2 = B^\dagger G^{-1}\hat{B}, && M_3 = \hat{B}^\dagger G^{-1}\hat{B}, && M_4 = B^\dagger G^{-1} && M_5 = \hat{B}^\dagger G^{-1},
+ & M_1 = B^\dagger G^{-1}B, & M_2 = B^\dagger G^{-1}\hat{B}, && M_3 = \hat{B}^\dagger G^{-1}\hat{B} - D, && M_4 = B^\dagger G^{-1} && M_5 = \hat{B}^\dagger G^{-1},
  @f}
 we can simply solve the system :
 @f{equation*}{
-    (M_3 - M_2^\dagger M_1^{-1} M_2) \hat{u}_h = (M_5 - M_2^\dagger M_1^{-1} M_4) l,
+    (M_3 - M_2^\dagger M_1^{-1} M_2) \hat{u}_h = (M_5 - M_2^\dagger M_1^{-1} M_4) l - g,
 @f}
 to obtain the solution on the mesh and then use it to recover the solution $u_h$,  with the following relation:
 @f{equation*}{
