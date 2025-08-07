@@ -66,20 +66,20 @@ namespace Step100
 
   // In the following function declaration, we will create the analytical
   // solutions of the velocity field ($\mathbf{u}$) and the pressure field
-  // ($p^*$) and the associated boundary values. However, in what follows, we
+  // ($p^*$) and the associated boundary values. However, in this tutorial, we
   // will avoid to use deal.ii complexe capabilities and only use the complex
   // functions that are defined in the C++ standard library. Consequently, we
   // will define two implementation of each functions, one for the real
   // component and one for the imaginary one.
 
-  // Create analytical solution class for kinematic pressure ($p^*$).
+  // We create analytical solution class for kinematic pressure ($p^*$). The
+  // analytical solution will depend on the wavenumber $k$ and the angle
+  // $\theta$ defined for the direction of propagation so we will add them to
+  // the constructor.
   template <int dim>
   class AnalyticalSolution_p_real : public Function<dim>
   {
   public:
-    // The analytical solution will depend on the wavenumber $k$ and the angle
-    // $\theta$ defined for the direction of propagation so we will add them to
-    // the constructor.
     AnalyticalSolution_p_real(double wavenumber, double theta)
       : Function<dim>()
       , wavenumber(wavenumber)
@@ -138,13 +138,12 @@ namespace Step100
 
   // Now we do the same for the velocity field ($\mathbf{u}$) and create two
   // class that will return either the real or the imaginary part of our
-  // analytical solution.
+  // analytical solution. This class is similar to the previous ones but
+  // since the velocity field is a vector, we will need the function to return
+  // $dim$ component. For our problem of interest, $dim = 2$.
   template <int dim>
   class AnalyticalSolution_u_real : public Function<dim>
   {
-    // This class is similar to the previous ones but since the velocity field
-    // is a vector, we will need the function to return $dim$ component. For our
-    // problem of interest, $dim = 2$.
   public:
     AnalyticalSolution_u_real(double wavenumber, double theta)
       : Function<dim>(2)
@@ -743,7 +742,7 @@ namespace Step100
 
     Vector<double> tmp_vector(dofs_per_cell_trial_interior);
 
-    // We create the cell matrix and the rhs that will be distributed in the
+    // We create the cell matrix and the RHS that will be distributed in the
     // full system after the assembly along with the indices mapping.
     FullMatrix<double> cell_matrix(dofs_per_cell_trial_skeleton,
                                    dofs_per_cell_trial_skeleton);
@@ -875,7 +874,7 @@ namespace Step100
                   }
 
                 // The only to matrices that have some value in the interior of
-                // the cell is the $\mathbf{G}$ and $\mathbf{B}$ matrices. We
+                // the cell is the $G$ and $B$ matrices. We
                 // will first construct the Gram matrix, so will loop over test
                 // space dofs a second time.
                 for (const auto j : fe_values_test.dof_indices())
@@ -964,7 +963,7 @@ namespace Step100
                       }
                   }
 
-                // Now we will build the matrix $\mathbf{B}$, the one associated
+                // Now we will build the matrix $B$, the one associated
                 // to the operator of our problem on the interior element. So we
                 // loop over trial space dofs on "j" and preform a similar
                 // procedure as for the Gram matrix.
@@ -1196,7 +1195,7 @@ namespace Step100
                       }
 
 
-                    // Again, same procedur, we construct the $\hat{\mathbf{B}}$
+                    // Again, same procedur, we construct the $\hat{B}$
                     // matrix and to do so, we loop over trial space dofs on
                     // "j".
                     for (const auto j : fe_values_trial_skeleton.dof_indices())
@@ -1261,7 +1260,7 @@ namespace Step100
                   }
 
                 // Finally, we will build the $\mathbf{D}$ matrix and the source
-                // term vector $\mathbf{g}$ for the Robin boundaries. We first
+                // term vector $G$ for the Robin boundaries. We first
                 // verify if the face is at one of them.
                 if (current_boundary_id == 1 || current_boundary_id == 3)
                   {
@@ -1376,32 +1375,36 @@ namespace Step100
         // Finally, after having assembled all the matrices and vectors, be
         // build the condensed version of the system.
 
-        // We only need the inverse of the Gram matrix $\mathbf{G}$, so we
+        // We only need the inverse of the Gram matrix $G$, so we
         // invert it.
         G_matrix.invert();
 
-        // We construct $M_4 = \mathbf{B}^\dagger \mathbf{G}^{-1}$ and // $M_5 =
-        // \hat{\mathbf{B}}^\dagger \mathbf{G}^{-1}$ with it:
+        // We construct $M_4 = B^\dagger G^{-1}$ and
+        // // $M_5 = \hat{B}^\dagger G^{-1}$ with it:
         B_matrix.Tmmult(M4_matrix, G_matrix);
         B_hat_matrix.Tmmult(M5_matrix, G_matrix);
 
-        // Then using M4 we compute the condensed matrix $M_1 =
-        // \mathbf{B}^\dagger \mathbf{G}^{-1} \mathbf{B}$ and $M_2 =
-        // \mathbf{B}^\dagger \mathbf{G}^{-1} \hat{\mathbf{B}}$ :
+        // Then using $M_4 we compute the condensed matrix
+        // $M_1 = B^\dagger G^{-1} B$ and
+        // $M_2 = B^\dagger G^{-1} \hat{B}$
+        // :
         M4_matrix.mmult(M1_matrix, B_matrix);
         M4_matrix.mmult(M2_matrix, B_hat_matrix);
 
-        // We also compute the matrix $M_3 = \hat{\mathbf{B}}^\dagger
-        // \mathbf{G}^{-1} \hat{\mathbf{B}} - \mathbf{D}$ using $M_5$ and
+        // We also compute the matrix $M_3 = \hat{B}^\dagger
+        // G^{-1} \hat{B} using $M_5$ and then
+        // subtract
         // $\mathbf{D}$:
         M5_matrix.mmult(M3_matrix, B_hat_matrix);
         M3_matrix.add(-1.0, D_matrix);
 
-        // Finally, as for the $G$ matrix, we invert the $M_1$ matrix:
+        // Finally, as for the $G$ matrix, we invert the $M_1$
+        // matrix:
         M1_matrix.invert();
 
         // If the flag solve interior is set to true, we have already the
-        // solution on the skeleton and only need to perform $u_h = M_1^{-1}
+        // solution on the skeleton and only need to perform $u_h =
+        // M_1^{-1}
         // (M_4 l - M_2 \hat{u}_h)$ on each cell.
         if (solve_interior)
           {
@@ -1422,7 +1425,7 @@ namespace Step100
                                              solution_interior);
           }
         // If the flag solve interior is set to false, we have to compute the
-        // local matrix and the local rhs for the condensed system.
+        // local matrix and the local RHS for the condensed system.
         else
           {
             // So the cell matrix is obtained with the formula $(M_3 -
@@ -1435,8 +1438,9 @@ namespace Step100
             // so we can perform the distribution to the global system below.
             cell_matrix = tmp_matrix2;
 
-            // Then we compute the cell rhs using $(M_5 - M_2^\dagger M_1^{-1}
-            // M_4)l - g$.
+            // Then we compute the cell RHS using $(M_5 -
+            // M_2^\dagger M_1^{-1} M_4)\mathbf{l} -
+            // G$.
             tmp_matrix.mmult(tmp_matrix3, M4_matrix);
             M5_matrix.add(-1.0, tmp_matrix3);
             M5_matrix.vmult(cell_skeleton_rhs, l_vector);
@@ -1454,13 +1458,22 @@ namespace Step100
   }
 
   // @sect3{DPG::solve}
+  // This function is in charge of solving the linear system assembled and has
+  // nothing specific to DPG per se. The method just allows to use the Conjugate
+  // Gradient iterative solver so that is what is implemented here. Note that
+  // because we do not have any precontionner, the number of iterations can be
+  // quite high. For simplicity, we put a high upper limit on the number of
+  // iterations, but in practice one would want to change this function to have
+  // a more robust solver. The tolerance for the convergence here is defined
+  // proportional to the $L^2$ norm of the RHS vector so the stopping criteria
+  // is scale aware.
   template <int dim>
   void DPGHelmholtz<dim>::solve_skeleton()
   {
     std::cout << std::endl << "Solving the DPG system..." << std::endl;
 
     // Iterative solver
-    SolverControl solver_control(1000000, 1e-10 * system_rhs.l2_norm());
+    SolverControl solver_control(100000, 1e-10 * system_rhs.l2_norm());
     SolverCG<Vector<double>> solver(solver_control);
     solver.solve(system_matrix,
                  solution_skeleton,
@@ -1476,14 +1489,21 @@ namespace Step100
   }
 
   // @sect3{DPG::output_results}
+  // This function is also quite standard and is in charge of outputting the
+  // solution to a file that can be visualized with Paraview or Visit (VTK
+  // format). However, because the skeleton solution lives only on the mesh
+  // faces, we made use of the DataOutFaces class to output it properly.
   template <int dim>
   void DPGHelmholtz<dim>::output_results(const unsigned int cycle)
   {
-    // Output cell data
+    // We first attach the DoFHandler to the DataOut object for the interior
+    // solution, define the names of the solution components, and specify how to
+    // interpret each component (as part of a vector for the velocity real and
+    // imaginary parts, and as scalars for the pressure real and imaginary
+    // parts).
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof_handler_trial_interior);
 
-    // Organize the solution output
     std::vector<std::string> solution_interior_names(dim, "velocity_real");
     for (unsigned int i = 0; i < dim; ++i)
       {
@@ -1504,7 +1524,8 @@ namespace Step100
     data_component_interpretation.push_back(
       DataComponentInterpretation::component_is_scalar);
 
-    // Output the solution
+    // Once the setup is done, we add the solution vector to the DataOut object,
+    // build the patches for visualization, and write the output to a VTK file.
     data_out.add_data_vector(solution_interior,
                              solution_interior_names,
                              DataOut<dim>::type_automatic,
@@ -1516,7 +1537,8 @@ namespace Step100
                          ".vtk");
     data_out.write_vtk(output);
 
-    // Output face data
+    // Then we do the same for the skeleton solution. The main difference here
+    // is that every components are scalars.
     DataOutFaces<dim> data_out_faces(false);
     data_out_faces.attach_dof_handler(dof_handler_trial_skeleton);
 
@@ -1535,15 +1557,27 @@ namespace Step100
                                    data_component_interpretation_skeleton);
 
     data_out_faces.build_patches(fe_trial_skeleton.degree);
-    std::ofstream output_face("solution-face_planewave_square-" +
+    std::ofstream output_face("solution-p_hatlanewave_square-" +
                               std::to_string(cycle) + ".vtk");
     data_out_faces.write_vtk(output_face);
   }
 
   // @sect3{DPG::calculate_error}
+  // In this function, we compute the $L^2$ error of each component of our
+  // solution, that is to say for the velocity and pressure real and imaginary
+  // parts for both the interior and skeleton solutions. Because we want to have
+  // all those different information and our solution vectors for the interior
+  // and for the skeleton have all the fields together, we cannot use the
+  // VectorTools::integrate_difference function directly. Instead, we will
+  // perform the computation "by hand" by looping over all the cells and faces,
+  // interpolating the solution at the quadrature points, and computing the
+  // error with respect to the analytical solution at those points.
   template <int dim>
   void DPGHelmholtz<dim>::calculate_L2_error()
   {
+    // We first need to intensiate the FEValues and FEFaceValues objects as it
+    // has been done during the assembly to manage the solution when we loop
+    // over the cells and faces.
     QGauss<dim>           quadrature_formula(fe_test.degree + 1);
     FEValues<dim>         fe_values_trial_interior(fe_trial_interior,
                                            quadrature_formula,
@@ -1561,7 +1595,8 @@ namespace Step100
     const unsigned int n_q_points      = quadrature_formula.size();
     const unsigned int n_face_q_points = face_quadrature_formula.size();
 
-    // Create a variable to store the integration result
+    // We create variables that will store all the integration result we are
+    // interested in.
     double L2_error_p_real     = 0;
     double L2_error_p_imag     = 0;
     double L2_error_p_hat_real = 0;
@@ -1570,26 +1605,28 @@ namespace Step100
     double L2_error_u_imag     = 0;
     double L2_error_u_hat_real = 0;
     double L2_error_u_hat_imag = 0;
-    double mesh_skeleton_area  = 0;
 
-    // Create a variable to store the analytical solution scalar product with
-    // normal
+    // To compute the error for the velocity field on the faces we will need to
+    // compute the obtain the normal component of our analytical solution on
+    // those faces. Here we create a variable to store the result of the scalar
+    // product.
     double u_hat_n_analytical_real = 0.;
     double u_hat_n_analytical_imag = 0.;
 
-    // Create an std::vector which will contain all the interpolated
-    // values at the quadrature points
-    std::vector<Tensor<1, dim>> local_u_values_real(n_q_points);     // u'
-    std::vector<Tensor<1, dim>> local_u_values_imag(n_q_points);     // u''
-    std::vector<double>         local_field_values_real(n_q_points); // p'
-    std::vector<double>         local_field_values_imag(n_q_points); // p''
-    std::vector<double> local_face_u_values_real(n_face_q_points);   // u_n_hat'
-    std::vector<double> local_face_u_values_imag(n_face_q_points); // u_n_hat''
-    std::vector<double> local_face_field_values_real(n_face_q_points); // p_hat'
-    std::vector<double> local_face_field_values_imag(
-      n_face_q_points); // p_hat''
+    // When looping on each cell or face, we will extract the different field
+    // solution obtain numerically. The containers use to store the interpolated
+    // solution at the quadrature points are declared in using std::vector.
+    std::vector<Tensor<1, dim>> local_u_real(n_q_points);
+    std::vector<Tensor<1, dim>> local_u_imag(n_q_points);
+    std::vector<double>         local_p_real(n_q_points);
+    std::vector<double>         local_p_imag(n_q_points);
+    std::vector<double>         local_u_hat_real(n_face_q_points);
+    std::vector<double>         local_u_hat_imag(n_face_q_points);
+    std::vector<double>         local_p_hat_real(n_face_q_points);
+    std::vector<double>         local_p_hat_imag(n_face_q_points);
 
-    // Create the functions for the analytical solution
+    // Here we use the previously defined analytical solution classes so we can
+    // perform the computation later on.
     AnalyticalSolution_p_real<dim> analytical_solution_p_real(wavenumber,
                                                               theta);
     AnalyticalSolution_p_imag<dim> analytical_solution_p_imag(wavenumber,
@@ -1599,80 +1636,79 @@ namespace Step100
     AnalyticalSolution_u_imag<dim> analytical_solution_u_imag(wavenumber,
                                                               theta);
 
-    // Now we loop over all the cells
+
+    // We first loop over all the cells of our mesh and extract the solution in
+    // the interior.
     for (const auto &cell : dof_handler_trial_interior.active_cell_iterators())
       {
-        // Extract local solution
         fe_values_trial_interior.reinit(cell);
         const typename DoFHandler<dim>::active_cell_iterator cell_skeleton =
           cell->as_dof_handler_iterator(dof_handler_trial_skeleton);
 
         fe_values_trial_interior[extractor_u_real].get_function_values(
-          solution_interior, local_u_values_real);
+          solution_interior, local_u_real);
         fe_values_trial_interior[extractor_u_imag].get_function_values(
-          solution_interior, local_u_values_imag);
+          solution_interior, local_u_imag);
         fe_values_trial_interior[extractor_p_real].get_function_values(
-          solution_interior, local_field_values_real);
+          solution_interior, local_p_real);
         fe_values_trial_interior[extractor_p_imag].get_function_values(
-          solution_interior, local_field_values_imag);
+          solution_interior, local_p_imag);
 
-        // Compute the L2 error
+        // Then we loop on the cell quadrature points because it is where we
+        // will compute the error.
         const auto &quadrature_points =
           fe_values_trial_interior.get_quadrature_points();
 
-        // Loop over all quadrature points of each cell
         for (const unsigned int q_index :
              fe_values_trial_interior.quadrature_point_indices())
           {
             const double JxW      = fe_values_trial_interior.JxW(q_index);
             const auto  &position = quadrature_points[q_index];
 
-            // Calculate the L2 error for u
+
             for (unsigned int i = 0; i < dim; ++i)
               {
                 L2_error_u_real +=
-                  pow((local_u_values_real[q_index][i] -
+                  pow((local_u_real[q_index][i] -
                        analytical_solution_u_real.value(position, i)),
                       2) *
                   JxW;
                 L2_error_u_imag +=
-                  pow((local_u_values_imag[q_index][i] -
+                  pow((local_u_imag[q_index][i] -
                        analytical_solution_u_imag.value(position, i)),
                       2) *
                   JxW;
               }
-            // Calculate the L2 error for p
+
             L2_error_p_real +=
-              pow((local_field_values_real[q_index] -
+              pow((local_p_real[q_index] -
                    analytical_solution_p_real.value(position, 0)),
                   2) *
               JxW;
 
             L2_error_p_imag +=
-              pow((local_field_values_imag[q_index] -
+              pow((local_p_imag[q_index] -
                    analytical_solution_p_imag.value(position, 0)),
                   2) *
               JxW;
           }
 
-        // Loop over all face
+        // Then we loop on the face for the skeleton solution error and use the
+        // same approach.
         for (const auto &face : cell->face_iterators())
           {
-            // Reinitialization
             fe_values_trial_skeleton.reinit(cell_skeleton, face);
             const auto face_no = cell_skeleton->face_iterator_to_index(face);
 
-            // Extract local solution
             fe_values_trial_skeleton[extractor_u_hat_real].get_function_values(
-              solution_skeleton, local_face_u_values_real);
+              solution_skeleton, local_u_hat_real);
             fe_values_trial_skeleton[extractor_u_hat_imag].get_function_values(
-              solution_skeleton, local_face_u_values_imag);
+              solution_skeleton, local_u_hat_imag);
             fe_values_trial_skeleton[extractor_p_hat_real].get_function_values(
-              solution_skeleton, local_face_field_values_real);
+              solution_skeleton, local_p_hat_real);
             fe_values_trial_skeleton[extractor_p_hat_imag].get_function_values(
-              solution_skeleton, local_face_field_values_imag);
+              solution_skeleton, local_p_hat_imag);
 
-            // Compute the L2 error
             const auto &quadrature_points =
               fe_values_trial_skeleton.get_quadrature_points();
 
@@ -1684,7 +1720,12 @@ namespace Step100
                 const auto  &normal =
                   fe_values_trial_skeleton.normal_vector(q_index);
 
-                // Get the neighbor cell and current cell id
+                // Because we are looping over cells and cells share faces in
+                // the interior we add a condition to only integrate once per
+                // face. We use a similar idea than to define the flux
+                // orientation during the assembly. Each face is only integrated
+                // when we are at the cell with the lowest index among the two
+                // cells sharing the face. Boundary faces are always integrated.
                 int neighbor_cell_id = -1;
                 if (face->at_boundary())
                   {
@@ -1696,14 +1737,18 @@ namespace Step100
                   }
                 const auto current_cell_id = cell->index();
 
-                // Only calculate the error for one of the cells communicating
-                // faces
                 if (neighbor_cell_id < current_cell_id)
                   {
                     continue;
                   }
 
-                // Calculate the L2 error for u_n_hat
+                // Has mentionned earlier, to compute the error for the
+                // $\hat{u}_n$ we need to do the scalar product of the
+                // analytical solution with the normal vector at the face
+                // quadrature points. We also take the absolute of the values
+                // for both the numerical and analytical solutions because the
+                // sign only depends on the orientation of the normal vector
+                // convention and changes from one face to another.
                 u_hat_n_analytical_real = 0.;
                 u_hat_n_analytical_imag = 0.;
                 for (unsigned int i = 0; i < dim; ++i)
@@ -1714,40 +1759,31 @@ namespace Step100
                       normal[i] * analytical_solution_u_imag.value(position, i);
                   }
 
-                L2_error_u_hat_real +=
-                  pow(abs(local_face_u_values_real[q_index]) -
-                        abs(u_hat_n_analytical_real),
-                      2) *
-                  JxW;
-                L2_error_u_hat_imag +=
-                  pow(abs(local_face_u_values_imag[q_index]) -
-                        abs(u_hat_n_analytical_imag),
-                      2) *
-                  JxW;
+                L2_error_u_hat_real += pow(abs(local_u_hat_real[q_index]) -
+                                             abs(u_hat_n_analytical_real),
+                                           2) *
+                                       JxW;
+                L2_error_u_hat_imag += pow(abs(local_u_hat_imag[q_index]) -
+                                             abs(u_hat_n_analytical_imag),
+                                           2) *
+                                       JxW;
 
-                // Calculate the L2 error for p_hat
                 L2_error_p_hat_real +=
-                  pow((local_face_field_values_real[q_index] -
+                  pow((local_p_hat_real[q_index] -
                        analytical_solution_p_real.value(position, 0)),
                       2) *
                   JxW;
                 L2_error_p_hat_imag +=
-                  pow((local_face_field_values_imag[q_index] -
+                  pow((local_p_hat_imag[q_index] -
                        analytical_solution_p_imag.value(position, 0)),
                       2) *
                   JxW;
-
-                mesh_skeleton_area += JxW;
               }
           }
       }
 
-    // Normalize the error by the mesh area
-    L2_error_p_hat_real /= mesh_skeleton_area;
-    L2_error_p_hat_imag /= mesh_skeleton_area;
-    L2_error_u_hat_real /= mesh_skeleton_area;
-    L2_error_u_hat_imag /= mesh_skeleton_area;
-
+    // Finally, we output the results to the terminal and store the errors in
+    // the <code>error_table</code>.
     std::cout << "Velocity real part L2 error is : "
               << std::sqrt(L2_error_u_real) << std::endl;
     std::cout << "Velocity imag part L2 error is : "
@@ -1765,7 +1801,6 @@ namespace Step100
     std::cout << "Pressure skeleton imag part L2 error is : "
               << std::sqrt(L2_error_p_hat_imag) << std::endl;
 
-    // Store the errors in the error table
     error_table.add_value("eL2_u_r", std::sqrt(L2_error_u_real));
     error_table.add_value("eL2_u_i", std::sqrt(L2_error_u_imag));
     error_table.add_value("eL2_p_r", std::sqrt(L2_error_p_real));
@@ -1777,6 +1812,9 @@ namespace Step100
   }
 
   // @sect3{DPG::refine_grid}
+  // This function creates the mesh for the first cycle and then refines it
+  // uniformly for subsequent cycles. It also records the number of cells and
+  // the maximum cell diameter in the error table for convergence analysis.
   template <int dim>
   void DPGHelmholtz<dim>::refine_grid(const unsigned int cycle)
   {
@@ -1805,10 +1843,13 @@ namespace Step100
   }
 
   // @sect3{DPG::run}
+  // This function is the main loop of the program using all the previously
+  // defined functions. It is also where the convergence rates are obtained
+  // after all the refinement cycles.
   template <int dim>
   void DPGHelmholtz<dim>::run()
   {
-    for (unsigned int cycle = 0; cycle < 4; ++cycle)
+    for (unsigned int cycle = 0; cycle < 5; ++cycle)
       {
         std::cout << "===========================================" << std::endl
                   << "Cycle " << cycle << ':' << std::endl;
@@ -1817,12 +1858,15 @@ namespace Step100
         setup_system();
         assemble_system(false);
         solve_skeleton();
-        assemble_system(true); // Solve the interior problem
+
+        // After solving the skeleton system, we call the assembly function
+        // another time to solve for the interior.
+        assemble_system(true);
         calculate_L2_error();
         output_results(cycle);
       }
 
-    // Evaluate convergence rates of interest
+
     error_table.evaluate_convergence_rates(
       "eL2_u_r", "n_cells", ConvergenceTable::reduction_rate_log2);
     error_table.evaluate_convergence_rates(
@@ -1848,15 +1892,23 @@ namespace Step100
 
 // @sect3{The <code>main</code> function}
 
-// This is the main function of the program.
+// This is the main function of the program. It creates an instance of the
+// DPGHelmholtz class and calls its run method.
 int main()
 {
   const unsigned int dim = 2;
 
   try
     {
-      int degree       = 1;
-      int delta_degree = 1;
+      // Here we create the necessary variables for our 2D DPG Helmholtz, i.e.,
+      // the degree of the trial space <code>degree</code>, the degree
+      // difference between the test and trial spaces <code>delta_degree</code>,
+      // the wavenumber <code>wavenumber</code>, and the angle of incidence of
+      // the plane wave <code>theta</code> in radians.
+      int    degree       = 1;
+      int    delta_degree = 1;
+      double wavenumber   = 4 * M_PI;
+      double theta        = M_PI / 4.;
 
       std::cout << "===========================================" << std::endl
                 << "Trial order: " << degree << std::endl
@@ -1864,15 +1916,12 @@ int main()
                 << "===========================================" << std::endl
                 << std::endl;
 
-      double wavenumber = 2 * 2. * M_PI; // N oscillations times 2 pi
-      double theta      = M_PI / 4.;     // Angle of incidence in radians
+      Step100::DPGHelmholtz<dim> dpg_helmholtz(degree,
+                                               delta_degree,
+                                               wavenumber,
+                                               theta);
 
-      Step100::DPGHelmholtz<dim> dpg_poisson(degree,
-                                             delta_degree,
-                                             wavenumber,
-                                             theta);
-
-      dpg_poisson.run();
+      dpg_helmholtz.run();
 
       std::cout << std::endl;
     }
