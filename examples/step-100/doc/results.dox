@@ -5,16 +5,28 @@
 
 <!-- Convergence of the method. L2 norm as a function of h -->
 
+@htmlonly
+<p align="center">
+  <img src="https://www.dealii.org/images/steps/developer/step-97-Jf.svg" alt="The result - free-current
+ density" height="531">
+</p>
+@endhtmlonly
+
 
 <h3>Linear solver iterations</h3>
 
-<!-- Number of iterations of the linear solver as a function of h/wave length -->
-<!-- Comparaison à un solveur Helholtz + GMRES sans preconditionner -->
+<!-- Number of iterations of the linear solver as a function of dofs for 2 wavelength -->
+
 
 <h3>Possibilities for extension </h3>
 
-<!-- Meilleur preconditionneur pour le solveur linéaire. -->
-<!-- hp refinement avec le built-in error estimator -->
+As an extension to get a feeling of the method, one could first try to implement the 3D version of the plane wave problem in the unit cube by adding a second angle $\phi$. The analytical solution to this problem is also known and is described by :
+@f{align*}{
+    p^*        & = e^{-i k (x \cos(\theta) \sin{\phi} + y \sin(\theta) \sin(\phi) + z \cos(\phi))},                                                                                                                                                    \\
+    \mathbf{u} & = \frac{1}{c_s} \begin{pmatrix} \cos(\theta) \sin(\phi)  \\ \sin(\theta) \sin(\phi) \\ \cos(\phi) \end{pmatrix} e^{-i k (x \cos(\theta) \sin{\phi} + y \sin(\theta) \sin(\phi) + z \cos(\phi))}.
+@f}
+Another interesting extension would be to reconstruct the residual $\Psi^r$ when the solution on the faces and interior dofs is know to build an error estimator that can be used for adaptive hp-refinement. Finally, if one is interested more specifically in time-harmonic problem, the implementation of an adequate preconditioner will improve the algorithm convergence of the linear solver which blows up as we refine the mesh or increase the frequency as we can see from the figure presented. This behaviour is one of the inherent difficulties for this type of problem. 
+
 
 
 
