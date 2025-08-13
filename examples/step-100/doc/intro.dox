@@ -65,7 +65,7 @@ However, it has been shown from previous DPG study that the ultraweak formulatio
 @f{align*}{
 & p^* \in L^2(\Omega), \mathbf{u} \in (L^2(\Omega))^d \\
 & (i \omega \mathbf{u}, \overline{\mathbf{v}})_{\Omega_h} - (p^*, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h} + \langle p^*, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\Gamma} = 0, \quad \forall \mathbf{v} \in H(\text{div}, K), \\
-    &(i\omega p^*, \overline{q})_{\Omega_h} - (\mathbf{u}, \overline{\nabla v})_{\Omega_h} + \langle \mathbf{u} \cdot \mathbf{n},\overline{q} \rangle_{\Gamma} = (f, \overline{q})_{\Omega_h}, \quad \forall q \in H^1(K).
+    &(i\omega p^*, \overline{q})_{\Omega_h} - (\mathbf{u}, \overline{\nabla q})_{\Omega_h} + \langle \mathbf{u} \cdot \mathbf{n},\overline{q} \rangle_{\Gamma} = (f, \overline{q})_{\Omega_h}, \quad \forall q \in H^1(K).
 @f}
 
 <h3>The Discontinuous Petrov-Galerkin Method</h3>
@@ -94,13 +94,13 @@ This solves the problem of computing the norm of the dual space. Still, it is no
 @f{equation*}{
     \label{eq:DPG_abstract_problem}
     \begin{cases}
-        u_h \in U_h \subset U, \quad \hat{u}_h \in \hat{U}_h \subset \hat{U}, \quad \psi^r \in V^r(\Omega_h),           \\
-        (\psi^r, v^r)_V + b_h(u_h, v^r) + \langle \hat{u}_h, v^r \rangle = l(v^r), \quad \forall v^r \in V^r(\Omega_h), \\
-        b_h(w_h, \psi^r) = 0, \quad \forall w_h \in U_h,                                                                \\
-        \langle \hat{w}_h, \psi^r \rangle = 0, \quad \forall \hat{w}_h \in \hat{U}_h,
+        u_h \in U_h \subset U, \quad \hat{u}_h \in \hat{U}_h \subset \hat{U}, \quad \Psi^r \in V^r(\Omega_h),           \\
+        (\Psi^r, v^r)_V + b_h(u_h, v^r) + \langle \hat{u}_h, v^r \rangle = l(v^r), \quad \forall v^r \in V^r(\Omega_h), \\
+        b_h(w_h, \Psi^r) = 0, \quad \forall w_h \in U_h,                                                                \\
+        \langle \hat{w}_h, \Psi^r \rangle = 0, \quad \forall \hat{w}_h \in \hat{U}_h,
     \end{cases}
 @f}
-where $\psi^r = R^{-1}_r(l-Bu_h)$. Finally, by defining the bases for discretized trial space $U_h \times \hat{U}_h$ and the discretized broken test space $V^r(\Omega_h)$, such that $U_h = \text{span}\{ \phi_i \}_{i=1}^{N_u}$, $\hat{U}_h = \text{span}\{ \hat{\phi}_i \}_{i=1}^{N_{\hat{u}}}$ and $V^r= \text{span}\{ \psi_i \}_{i=1}^{N_v}$, where $N_v > N_u + N_{\hat{u}}$, the problem can be solved numerically by asking to find the set of coefficients:
+where $\Psi^r = R^{-1}_r(l-Bu_h)$. Finally, by defining the bases for discretized trial space $U_h \times \hat{U}_h$ and the discretized broken test space $V^r(\Omega_h)$, such that $U_h = \text{span}\{ \phi_i \}_{i=1}^{N_u}$, $\hat{U}_h = \text{span}\{ \hat{\phi}_i \}_{i=1}^{N_{\hat{u}}}$ and $V^r= \text{span}\{ \Psi_i \}_{i=1}^{N_v}$, where $N_v > N_u + N_{\hat{u}}$, the problem can be solved numerically by asking to find the set of coefficients:
 @f[
     \mathbf{w} = [w_i]_{i=1}^{N_u} \in \mathbb{F}^{N_u}, \quad
     \hat{\mathbf{w}} = [\hat{w}_i]_{\hat{i}=1}^{N_{\hat{u}}} \in \mathbb{F}^{N_{\hat{u}}}, \quad
@@ -110,7 +110,7 @@ such that:
 @f[
     u_h = \sum_{i=1}^{N_u} w_i \phi_i, \quad
     \hat{u}_h = \sum_{i=1}^{N_{\hat{u}}} \hat{w}_i \hat{\phi}_i, \quad
-    \psi^r = \sum_{i=1}^{N_v} q_i \psi_i
+    \Psi^r = \sum_{i=1}^{N_v} q_i \Psi_i
 @f]
 satisfy the following matrix system:
 @f{equation*}{
@@ -171,7 +171,7 @@ Now if we apply the DPG method to the acoustic Helmholtz ultraweak formulation p
 @f{align*}{
 & p^* \in L^2(\Omega), \mathbf{u} \in (L^2(\Omega))^d \\
 & (i \omega \mathbf{u}, \overline{\mathbf{v}})_{\Omega_h} - (p^*, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h} + \langle \hat{p}^*, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\partial \Omega_h} + \langle \hat{p}^*, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\Gamma} = 0, \quad \forall \mathbf{v} \in H(\text{div}, K), \\
-    &(i\omega p^*, \overline{q})_{\Omega_h} - (\mathbf{u}, \overline{\nabla v})_{\Omega_h} + \langle \hat{u}_n,\overline{q} \rangle_{\partial \Omega_h} + \langle \hat{u}_n,\overline{q} \rangle_{\Gamma} = (f, \overline{q})_{\Omega_h}, \quad \forall q \in H^1(K).
+    &(i\omega p^*, \overline{q})_{\Omega_h} - (\mathbf{u}, \overline{\nabla q})_{\Omega_h} + \langle \hat{u}_n,\overline{q} \rangle_{\partial \Omega_h} + \langle \hat{u}_n,\overline{q} \rangle_{\Gamma} = (f, \overline{q})_{\Omega_h}, \quad \forall q \in H^1(K).
 @f}
 where we made explicit the difference between the mesh skeleton terms $\hat{u}_n$ and $\hat{p}^*$ and the interior terms $\mathbf{u}$ and $p^*$ along with a distinction between the skeleton ($\partial \Omega_h$) and the boundary ($\Gamma$). From the ultraweak formulation, we can identify the space of our problem :
 @f{align*}{
@@ -180,7 +180,7 @@ where we made explicit the difference between the mesh skeleton terms $\hat{u}_n
 @f}
 From it, we can also directly define the adjoint graph norm which will be used to build the Gram matrix and control the residual :
 @f{equation*}{
-     \|(\mathbf{v}, q)\|^2_V := \|A^* (\mathbf{v}, q)\|^2 + \alpha^2 (\|\mathbf{v}\|^2 + \|q\|^2 )= \|\nabla q + \overline{i\omega} \mathbf{v}\|^2 + \| \overline{i\omega} q + \nabla \cdot \mathbf{v}\|^2 + \|\mathbf{v}\|^2 + \|q\|^2,
+     \|(\mathbf{v}, q)\|^2_V := \|A^* (\mathbf{v}, q)\|^2 + \alpha^2 (\|\mathbf{v}\|^2 + \|q\|^2 )= \|\ \overline{i\omega} \mathbf{v} - \nabla q \|^2 + \| \overline{i\omega} q - \nabla \cdot \mathbf{v}\|^2 + \|\mathbf{v}\|^2 + \|q\|^2,
 @f}
 where $\alpha = \mathcal{O}(1)$ is a scaling parameter necessary for the stability of the method (here chosen to be one as it is commonly done).
 
@@ -215,7 +215,7 @@ on the appropriate boundaries. This extra relation adds new terms in the third e
 @f}
 In the above, we choose the sign so that the whole system remains positive definite (i.e., the matrix $D$ needs to be negative semidefinite, so we choose the sign to be the negative). As a final consequence of the Robin boundary condition, we also want to control the residual on this boundary. Therefore, we need to modify the adjoint graph norm to take it into account as follows:
 @f{align*}{
-    \|(\mathbf{v}, q)\|^2_E = \|\nabla q +\overline{i\omega}\mathbf{v}\|^2 + \|\overline{i\omega}q + \nabla \cdot \mathbf{v}\|^2 + \|\mathbf{v}\|^2 + \|q\|^2 + \|\mathbf{v} \cdot \mathbf{n} + \overline{\frac{k_n}{\omega}} q||^2_{\Gamma_1 \cup \Gamma_3}.
+    \|(\mathbf{v}, q)\|^2_E = \|\overline{i\omega}\mathbf{v} - \nabla q \|^2 + \|\overline{i\omega}q - \nabla \cdot \mathbf{v}\|^2 + \|\mathbf{v}\|^2 + \|q\|^2 + \|\mathbf{v} \cdot \mathbf{n} + \overline{\frac{k_n}{\omega}} q||^2_{\Gamma_1 \cup \Gamma_3}.
 @f}
 We are now finally ready to build out the following DPG system for our problem:
 
@@ -227,14 +227,14 @@ We are now finally ready to build out the following DPG system for our problem:
   + (\overline{i\omega}\mathbf{v}, i\omega \overline{ \mathbf{v}})_{\Omega_h}
   + \langle \mathbf{v} \cdot \mathbf{n}, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\Gamma_1 \cup \Gamma_3}
 
-  & (\nabla q, i\omega \overline{ \mathbf{v}})_{\Omega_h}
-  + (\overline{ i\omega} q, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h}
+  & -(\nabla q, i\omega \overline{ \mathbf{v}})_{\Omega_h}
+  - (\overline{ i\omega} q, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h}
   + \langle \overline{\frac{k_n}{\omega}}q, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\Gamma_1 \cup \Gamma_3}
   & (i\omega \mathbf{u}, \overline{\mathbf{v}})_{\Omega_h} & -(p^*, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h}
   & 0 & \langle \hat{p}^*, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\partial \Omega_h} \\
 
-  (\overline{i\omega} \mathbf{v}, \overline{\nabla q})_{\Omega_h}
-  + (\nabla \cdot \mathbf{v}, i\omega \overline{ q})_{\Omega_h}
+  -(\overline{i\omega} \mathbf{v}, \overline{\nabla q})_{\Omega_h}
+  - (\nabla \cdot \mathbf{v}, i\omega \overline{ q})_{\Omega_h}
   + \langle \mathbf{v} \cdot \mathbf{n}, \frac{k_n}{\omega}\overline{q} \rangle_{\Gamma_1 \cup \Gamma_3}
 
   & (q, \overline{q})_{\Omega_h}
