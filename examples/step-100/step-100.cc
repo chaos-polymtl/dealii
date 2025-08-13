@@ -15,7 +15,7 @@
 
 // @sect3{Include files}
 
-// The DPG method requires a large breadth of element type which are included
+// The DPG method requires a large breadth of elements type which are included
 // below:
 
 #include <deal.II/fe/fe_dgq.h>
@@ -67,15 +67,17 @@ namespace Step100
   // In the following function declaration, we will create the analytical
   // solutions of the velocity field ($\mathbf{u}$) and the pressure field
   // ($p^*$) and the associated boundary values. However, in this tutorial, we
-  // will avoid to use deal.ii complexe capabilities and only use the complex
-  // functions that are defined in the C++ standard library. Consequently, we
-  // will define two implementation of each functions, one for the real
-  // component and one for the imaginary one.
+  // will avoid to use deal.ii complex arithmetic capabilities and only use the
+  // complex functions that are defined in the C++ standard library.
+  // Consequently, in what follows, we will separate the real and imaginary
+  // component of our spaces. Therefore, we will also define two implementations
+  // of each function, one for the real component and one for the imaginary one.
 
-  // We create analytical solution class for kinematic pressure ($p^*$). The
-  // analytical solution will depend on the wavenumber $k$ and the angle
-  // $\theta$ defined for the direction of propagation so we will add them to
-  // the constructor.
+  // We start and create the analytical solution class for kinematic pressure
+  // ($p^*$). The analytical solution depends on the wavenumber $k$ and the
+  // angle
+  // $\theta$ defined for the direction of propagation of our plane wave problem
+  // so we will add them to the constructor.
   template <int dim>
   class AnalyticalSolution_p_real : public Function<dim>
   {
@@ -136,8 +138,8 @@ namespace Step100
   }
 
 
-  // Now we do the same for the velocity field ($\mathbf{u}$) and create two
-  // class that will return either the real or the imaginary part of our
+  // Now we will do the same for the velocity field ($\mathbf{u}$) and create
+  // two class that will return either the real or the imaginary part of our
   // analytical solution. This class is similar to the previous ones but
   // since the velocity field is a vector, we will need the function to return
   // $dim$ component. For our problem of interest, $dim = 2$.
@@ -219,13 +221,13 @@ namespace Step100
         "Too much components for the analytical solution");
   }
 
-  // We will do a similar job for the boundary values functions. The main
+  // A similar job is required for the boundary values functions. The main
   // difference is that the number of components will now be 4 because those
   // functions will be applied to our space of skeletons unknowns via the tool
-  // VectorTools::interpolate_boundary_values. There are 4 components, because
-  // the skeleton unknowns on faces for the velocity field are scalars from the
-  // definition $\hat{u}_n = \mathbf{u} \cdot n$ and there are the real and
-  // imaginary part of both fields.
+  // VectorTools::interpolate_boundary_values. This space has 4 components,
+  // because the skeleton unknowns on faces for the velocity field are scalars
+  // from the definition $\hat{u}_n = \mathbf{u} \cdot n$ and there are the real
+  // and imaginary part of both fields.
 
   template <int dim>
   class BoundaryValues_p_real : public Function<dim>
@@ -339,9 +341,9 @@ namespace Step100
   // @sect3{The <code>DPGHelmholtz</code> class template}
 
   // Next let's declare the main class of this program. The structure follows
-  // that of usual programs. The main difference lies in the fact that we rely
-  // on multiple DoFHandler and FESystem. The DoFHandlers that we rely on are
-  // the following:
+  // the usual one of tutorials programs. The main difference lies in the fact
+  // that we rely on multiple DoFHandler and FESystem. The DoFHandlers that we
+  // rely on are the following:
   // - The <code>dof_handler_trial_interior</code> is for the unknowns in the
   // interior of the cells
   // - The <code>dof_handler_trial_skeleton</code> is for the unknowns in the
@@ -353,7 +355,7 @@ namespace Step100
   // The same applies for the three FESystem:
   // <code>fe_system_trial_interior</code>,
   // <code>fe_system_trial_skeleton</code> and <code>fe_system_test</code>. In
-  // each one of these we will store the relevant finite element space in the
+  // each one of these, we will store the relevant finite element space in the
   // same order to avoid confusion. The first component will therefore always be
   // related to the real part of the velocity, the second component to the its
   // imaginary part, the third component to the real part of the pressure and
@@ -363,13 +365,14 @@ namespace Step100
   class DPGHelmholtz
   {
   public:
-    // The constructor takes as an argument the degree of the trial space as
-    // well as the delta degree between the trial space and the test space which
-    // is necessary to construct the DPG problem. The
-    // <code>delta_degree</code> must be at least 1 to ensure that the DPG
+    // The constructor takes as an argument the <code>degree </code> of the
+    // trial space as well as the  <code>delta_degree </code> between the trial
+    // space and the test space which is necessary to construct the DPG problem.
+    // The <code>delta_degree</code> must be at least 1 to ensure that the DPG
     // method is well posed. The parameter <code>theta</code> determines the
-    // angle of the incident plane wave. That angle must be between $0$ and
-    // $\frac{\pi}{2}$ included for the boundary conditions to make sense. Those
+    // angle of the incident plane wave. That angle must be in the closed
+    // interval $0$ and
+    // $\frac{\pi}{2}$ for the boundary conditions to make sense. Those
     // restrictions are asserted in the constructor.
 
     DPGHelmholtz(unsigned int degree,
@@ -392,20 +395,20 @@ namespace Step100
     // locally condensed such that the resulting system only contains the
     // skeleton unknowns. This is achieved by local condensation.
     // - When <code>solve_interior = true</code> the system is assembled and the
-    // skeleton degrees of freedom are used to reconstruct the interior
-    // solution.
+    // skeleton degrees of freedom solution previously computed are used to
+    // reconstruct the interior solution.
 
     void assemble_system(bool solve_interior = false);
 
-    // <code>solve_skeleton</code> solves the linear system of equation. This
-    // linear system of equation is only for the skeleton unknowns.
+    // <code>solve_skeleton</code> solves the linear system of equations. This
+    // linear system of equations is only for the skeleton unknowns.
     void solve_skeleton();
 
     // <code>refine_grid</code> refines the mesh uniformly.
     void refine_grid(unsigned int cycle);
 
     // <code>output_results</code> write the skeleton and the interior unknowns
-    // into two different paraview files.
+    // into two different Paraview files.
     void output_results(unsigned int cycle);
 
     // <code> calculate_L2_error</code> calculates the $L^2$ norm of the error
@@ -441,7 +444,7 @@ namespace Step100
     const double wavenumber;
     const double theta;
 
-    // Some exctractors that will be used at multiple places in the class to
+    // Some extractors that will be used at multiple places in the class to
     // select the relevant components for the calculation. Those can be created
     // here, at the class level, since they only depend on the FEM problem we
     // want to solve and how those specific components are defined in the finite
@@ -452,7 +455,7 @@ namespace Step100
     const FEValuesExtractors::Scalar extractor_p_imag;
 
     // However, the skeleton space does not have the same number of components
-    // as the interior and test space because the space $H^{-1/2}$ related to
+    // as the interior or the test space because the space $H^{-1/2}$ related to
     // the velocity field is a scalar field. Consequently, we need to define
     // additional extractor specifically for the skeleton spaces.
     const FEValuesExtractors::Scalar extractor_u_hat_real;
@@ -472,7 +475,7 @@ namespace Step100
   // $\Im(\mathbf{v})$, $\Re(q)$, $\Im(q)$.
 
   // Note that the Q elements have a degree higher than the others because their
-  // numerotation start at 1 instead of 0.
+  // numbering start at 1 instead of 0.
 
   template <int dim>
   DPGHelmholtz<dim>::DPGHelmholtz(const unsigned int degree,
@@ -510,13 +513,14 @@ namespace Step100
     , extractor_p_hat_imag(3)
 
   // In the constructor we also put some assertions to  check if everything is
-  // correctly defined for our problem. The assertions are to check that the
-  // dimension is 2 because the problem is defined in 3D. We also verifiy that
-  // the delta_degree variable is at least 1 since the degree of the test space
-  // must be at least one degree higher than the trial space. Finally, we check
-  // that the wavenumber is positive since it is the magnitude of the wave
-  // vector and that the angle theta is in the interval [0, $\pi$/2] because
-  // other angles would not be compatible with the current boundary definitions.
+  // correctly defined for our problem. The first assertion checks that the
+  // dimension is 2 because the problem is not defined in 3D. We also verify
+  // that the delta_degree variable is at least 1 since the degree of the test
+  // space must be at least one degree higher than the trial space. Finally, we
+  // check that the wavenumber is positive since it is the magnitude of the wave
+  // vector and that the angle theta is in the interval [0, $\pi$/2] because, as
+  // stated above,  // other angles would not be compatible with the current
+  // boundary definitions.
   {
     AssertDimension(dim, 2);
 
@@ -531,7 +535,7 @@ namespace Step100
 
   // @sect3{DPG::setup_system}
   // This function is similar to the other examples. The main difference lies in
-  // the fact that we need to setup multiple DOFHandlers for the interior, the
+  // the fact that we need to set up multiple DOFHandlers for the interior, the
   // skeleton and the test space.
   template <int dim>
   void DPGHelmholtz<dim>::setup_system()
@@ -540,7 +544,7 @@ namespace Step100
     dof_handler_trial_interior.distribute_dofs(fe_trial_interior);
     dof_handler_test.distribute_dofs(fe_test);
 
-    // We print the number of degree of freedoms for each of the DoFHandler as
+    // We print the number of degrees of freedoms for each of the DoFHandler as
     // well as adding this information to the ConvergenceTable.
     std::cout << std::endl
               << "Number of dofs for the interior: "
@@ -605,6 +609,9 @@ namespace Step100
                                              constraints,
                                              fe_trial_skeleton.component_mask(
                                                extractor_u_hat_imag));
+
+    // The robin boundary conditions do not require constraints and will be
+    // dealt with in the assembly so we can close our constraints.
     constraints.close();
 
     // The linear system that we form is only related to the skeleton unknowns.
@@ -637,7 +644,7 @@ namespace Step100
     const unsigned int    n_q_points      = quadrature_formula.size();
     const unsigned int    n_face_q_points = face_quadrature_formula.size();
 
-    // We than create the corresponding FEValues and FEFaceValues objects. Note
+    // We then create the corresponding FEValues and FEFaceValues objects. Note
     // that only the test space needs gradients because of the ultraweak
     // formulation. Similarly, because everything is on the same mesh, we only
     // need to update the quadrature points and JxW values in one of the spaces.
@@ -666,7 +673,7 @@ namespace Step100
                                             update_quadrature_points);
 
 
-    // We also create all the relevant matrix and vector to build the DPG
+    // We also create all the relevant matrices and vector to build the DPG
     // system. To do so we need the number of dofs per cell for each of the
     // finite element spaces.
     const unsigned int dofs_per_cell_test = fe_test.n_dofs_per_cell();
@@ -692,7 +699,7 @@ namespace Step100
     // functions values, gradient and divergence at the quadrature points for
     // the trial and test spaces. To avoid the query of the FEValues at each
     // quadrature point, we will use containers that will store the desired
-    // quantities before hand.
+    // quantities beforehand.
 
     std::vector<Tensor<1, dim>> v_real(dofs_per_cell_test);
     std::vector<Tensor<1, dim>> v_imag(dofs_per_cell_test);
@@ -743,7 +750,7 @@ namespace Step100
     Vector<double> tmp_vector(dofs_per_cell_trial_interior);
 
     // We create the cell matrix and the RHS that will be distributed in the
-    // full system after the assembly along with the indices mapping.
+    // full system after the assembly along with the index’s mapping.
     FullMatrix<double> cell_matrix(dofs_per_cell_trial_skeleton,
                                    dofs_per_cell_trial_skeleton);
     Vector<double>     cell_skeleton_rhs(dofs_per_cell_trial_skeleton);
@@ -760,21 +767,23 @@ namespace Step100
     // two complex constant that will be used during the following assembly.
     // Note that even if the system and matrix that we build are real, we still
     // make use of the standard library complex operation to facilitate some
-    // computations as it is done in step-81.
+    // computations as it is done in step-81. Also, because the phase velocity
+    // is considered to be 1, the wavenumber $k$ is equivalent to the angular
+    // frequency $omega$.
     constexpr std::complex<double> imag(0., 1.);
     const std::complex<double>     iomega      = imag * wavenumber;
     const std::complex<double>     iomega_conj = conj(iomega);
 
     // As it is standard we first loop over the cells of the triangulation. Here
     // we have the choice of the DoFHanlder to perform this loop. We will choose
-    // to loop using the one of the trial space in the interior because we it
-    // felt more natural.
+    // to loop using the one of the trial space in the interior because it
+    // felt more natural to us.
     for (const auto &cell : dof_handler_trial_interior.active_cell_iterators())
       {
         // We reinitialize the FEValues objects to the current cell.
         fe_values_trial_interior.reinit(cell);
 
-        // However, we will also need to reinitialize the FEValues for the test
+        // We will also need to reinitialize the FEValues for the test
         // space and make sure that is the same cell as the one used for the
         // trial space.
         const typename DoFHandler<dim>::active_cell_iterator cell_test =
@@ -796,8 +805,8 @@ namespace Step100
         g_vector     = 0;
         l_vector     = 0;
 
-        // We also need reinitialize the $M_1$ condensation matrix between each
-        // iteration on cell to get rid of its inverse status.
+        // We also need to reinitialize the $M_1$ condensation matrix between
+        // each iteration on cell to get rid of its inverse status.
         M1_matrix = 0;
 
         // As it is normally done, we then loop over all quadrature points of
@@ -858,9 +867,9 @@ namespace Step100
                   grad_q_real[i] - imag * grad_q_imag[i];
 
                 // When building the different part of the matrices, we need to
-                // know to what finite element the current dof is associated
-                // with. The following command does exactly that and get the
-                // information on wich element the dof is for the test space.
+                // know in what finite element the current dof is associated
+                // with. The following command does exactly that for the test
+                // space.
                 const unsigned int current_element_test_i =
                   fe_test.system_to_base_index(i).first.first;
 
@@ -869,18 +878,17 @@ namespace Step100
                 if ((current_element_test_i == 2) ||
                     (current_element_test_i == 3))
                   {
-                    // Compute load vector
                     l_vector(i) += 0;
                   }
 
-                // The only to matrices that have some value in the interior of
+                // The only two matrices that have some value in the interior of
                 // the cell is the $G$ and $B$ matrices. We
-                // will first construct the Gram matrix, so will loop over test
-                // space dofs a second time.
+                // will first construct the Gram matrix, so we will loop over
+                // test space dofs a second time.
                 for (const auto j : fe_values_test.dof_indices())
                   {
-                    // Again, we create the test basis functions get the
-                    // information on wich element the dof is.
+                    // Again, we create the test basis functions and get the
+                    // information on which element this dof is.
                     const auto v_j = v_real[j] + imag * v_imag[j];
 
                     const auto div_v_j = div_v_real[j] + imag * div_v_imag[j];
@@ -898,8 +906,9 @@ namespace Step100
                     // desired terms.
 
                     // For example, if both $i$ and $j$ are in test space
-                    // associted to the test function $\mathbf{v}$, we build the
-                    // terms $(\mathbf{v}, \overline{\mathbf{v}})_{\Omega_h} +
+                    // associated to the test functions $\mathbf{v}$, we build
+                    // the terms $(\mathbf{v}, \overline{\mathbf{v}})_{\Omega_h}
+                    // +
                     // (\nabla \cdot \mathbf{v}, \overline{\nabla \cdot
                     // \mathbf{v}})_{\Omega_h} + (\overline{i\omega}\mathbf{v},
                     // i\omega \overline{ \mathbf{v}})_{\Omega_h}$ :
@@ -915,8 +924,8 @@ namespace Step100
                             .real();
                       }
                     // If the dof "i" is in test function $mathbf{v}$ and dof
-                    // "j" in test function $q$ we build the terms $(\nabla q,
-                    // i\omega \overline{ \mathbf{v}})_{\Omega_h} + (\overline{
+                    // "j" in test function $q$ we build the terms $-(\nabla q,
+                    // i\omega \overline{ \mathbf{v}})_{\Omega_h} - (\overline{
                     // i\omega} q, \overline{\nabla \cdot
                     // \mathbf{v}})_{\Omega_h}$ :
                     else if (((current_element_test_i == 0) ||
@@ -932,8 +941,8 @@ namespace Step100
                       }
                     // If the dof "i" is in test function $q$ and the dof "j" is
                     // in the test function $\mathbf{v}$, we build the terms
-                    // (\overline{i\omega} \mathbf{v}, \overline{\nabla
-                    // q})_{\Omega_h} + (\nabla \cdot \mathbf{v}, i\omega
+                    // -(\overline{i\omega} \mathbf{v}, \overline{\nabla
+                    // q})_{\Omega_h} - (\nabla \cdot \mathbf{v}, i\omega
                     // \overline{ q})_{\Omega_h} :
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
@@ -1026,7 +1035,7 @@ namespace Step100
               }
           }
         // Now that we have built interior terms in our matrices, we will do the
-        // same for the skeleton terms. Similarly, we choose loop on the
+        // same for the skeleton terms. Similarly, we choose to loop on the
         // skeleton trial space faces because it felt more natural.
         for (const auto &face : cell_skeleton->face_iterators())
           {
@@ -1034,24 +1043,25 @@ namespace Step100
             fe_face_values_test.reinit(cell_test, face);
             fe_values_trial_skeleton.reinit(cell_skeleton, face);
 
-            // In what follow we will need to add terms that are only relevant
-            // for the Robin boundary conditiont. Consequently, we get face
-            // boundary id and assign a -1 value if the face is not at boundary.
-            // We also get the face number that will be used later on to
-            // determine the correct normal orientation of the fluxes.
+            // In what follows we will need to add terms that are only relevant
+            // for the Robin boundary conditions. Consequently, we get face
+            // boundary id and assign a -1 value if the face is not at the
+            // boundary to have a distinct flag. We also get the face number
+            // that will be used later on to determine the correct normal
+            // orientation of the fluxes.
             const auto face_no = cell->face_iterator_to_index(face);
             const auto current_boundary_id =
               face->at_boundary() ? face->boundary_id() : -1;
 
-            // The Robin boundary condition in our plane wave problem have a
+            // The Robin boundary conditions in our plane wave problem have a
             // factor $\frac{\mathbf{k} \cot \mathbf{n}}{\omega}$. However,
             // $\omega = k c_s$ with $c_s=1$ and $\mathbf{k} \cot \mathbf{n}$ is
             // either $k\cos{\theta}$ for the right boundary or $k\sin{\theta}$
             // for the top boundary because of our domain geometry. The
-            // wavenumber simplifies and we are left with the cosin and sin for
-            // the value of this factor, which we compute in advance according
-            // to the just obtained boundary id. Note that this implies that the
-            // term is always real for our case and
+            // wavenumber simplifies and we are left with the cosine and sine
+            // for the value of this factor, which we compute in advance
+            // according to the just obtained boundary id. Note that this
+            // implies that the term is always real for our case and
             // $\overline{\frac{k_n}{\omega}} = \frac{k_n}{\omega}$ in what
             // follows.
             const double kn_omega = (current_boundary_id == 1) ? cos(theta) :
@@ -1060,8 +1070,8 @@ namespace Step100
             // Now, the FE_FaceQ elements describe the trace of H(div)
             // conforming elements. However, they do not have an orientation
             // embedded in them. Therefore, to make sure that the flux that
-            // cross a face in a given cell is equal to the flux that cross the
-            // same face in the adjacent cell (for which the normal is
+            // cross a face in a given cell is equal to the flux that crosses
+            // the same face in the adjacent cell (for which the normal is
             // opposite), we add a factor that will be either 1 or -1. Since
             // this type of element is only continuous across faces, we can
             // create an orientation rule that only depends on a given face
@@ -1195,7 +1205,7 @@ namespace Step100
                       }
 
 
-                    // Again, same procedur, we construct the $\hat{B}$
+                    // Again, same procedure, we construct the $\hat{B}$
                     // matrix and to do so, we loop over trial space dofs on
                     // "j".
                     for (const auto j : fe_values_trial_skeleton.dof_indices())
@@ -1402,13 +1412,13 @@ namespace Step100
         // matrix:
         M1_matrix.invert();
 
-        // If the flag solve interior is set to true, we have already the
+        // If the flag solves interior is set to true, we have already the
         // solution on the skeleton and only need to perform $u_h =
         // M_1^{-1}
         // (M_4 l - M_2 \hat{u}_h)$ on each cell.
         if (solve_interior)
           {
-            // We first fet the solution vector for this cell.
+            // We first get the solution vector for this cell.
             cell_skeleton->get_dof_values(solution_skeleton,
                                           cell_skeleton_solution);
 
@@ -1424,7 +1434,7 @@ namespace Step100
             cell->distribute_local_to_global(cell_interior_solution,
                                              solution_interior);
           }
-        // If the flag solve interior is set to false, we have to compute the
+        // If the flag solves interior is set to false, we have to compute the
         // local matrix and the local RHS for the condensed system.
         else
           {
@@ -1459,14 +1469,14 @@ namespace Step100
 
   // @sect3{DPG::solve}
   // This function is in charge of solving the linear system assembled and has
-  // nothing specific to DPG per se. The method just allows to use the Conjugate
-  // Gradient iterative solver so that is what is implemented here. Note that
-  // because we do not have any precontionner, the number of iterations can be
-  // quite high. For simplicity, we put a high upper limit on the number of
-  // iterations, but in practice one would want to change this function to have
-  // a more robust solver. The tolerance for the convergence here is defined
-  // proportional to the $L^2$ norm of the RHS vector so the stopping criteria
-  // is scale aware.
+  // nothing specific to DPG per se. The method just allows us to use the
+  // Conjugate Gradient iterative solver so that is what is implemented here.
+  // Note that because we do not have any preconditioner, the number of
+  // iterations can be quite high. For simplicity, we put a high upper limit on
+  // the number of iterations, but in practice one would want to change this
+  // function to have a more robust solver. The tolerance for the convergence
+  // here is defined proportional to the $L^2$ norm of the RHS vector so the
+  // stopping criterion is scaled aware.
   template <int dim>
   void DPGHelmholtz<dim>::solve_skeleton()
   {
@@ -1538,7 +1548,7 @@ namespace Step100
     data_out.write_vtk(output);
 
     // Then we do the same for the skeleton solution. The main difference here
-    // is that every components are scalars.
+    // is that every component are scalars.
     DataOutFaces<dim> data_out_faces(false);
     data_out_faces.attach_dof_handler(dof_handler_trial_skeleton);
 
@@ -1557,7 +1567,7 @@ namespace Step100
                                    data_component_interpretation_skeleton);
 
     data_out_faces.build_patches(fe_trial_skeleton.degree);
-    std::ofstream output_face("solution-p_hatlanewave_square-" +
+    std::ofstream output_face("solution_face_planewave_square-" +
                               std::to_string(cycle) + ".vtk");
     data_out_faces.write_vtk(output_face);
   }
@@ -1566,8 +1576,8 @@ namespace Step100
   // In this function, we compute the $L^2$ error of each component of our
   // solution, that is to say for the velocity and pressure real and imaginary
   // parts for both the interior and skeleton solutions. Because we want to have
-  // all those different information and our solution vectors for the interior
-  // and for the skeleton have all the fields together, we cannot use the
+  // all the different information and our solution vectors for the interior
+  // and for the skeleton separately, we cannot use the
   // VectorTools::integrate_difference function directly. Instead, we will
   // perform the computation "by hand" by looping over all the cells and faces,
   // interpolating the solution at the quadrature points, and computing the
@@ -1575,7 +1585,7 @@ namespace Step100
   template <int dim>
   void DPGHelmholtz<dim>::calculate_L2_error()
   {
-    // We first need to intensiate the FEValues and FEFaceValues objects as it
+    // We first need to instantiate the FEValues and FEFaceValues objects as it
     // has been done during the assembly to manage the solution when we loop
     // over the cells and faces.
     QGauss<dim>           quadrature_formula(fe_test.degree + 1);
@@ -1614,8 +1624,9 @@ namespace Step100
     double u_hat_n_analytical_imag = 0.;
 
     // When looping on each cell or face, we will extract the different field
-    // solution obtain numerically. The containers use to store the interpolated
-    // solution at the quadrature points are declared in using std::vector.
+    // solution obtain numerically. The containers used to store the
+    // interpolated solution at the quadrature points are declared in using
+    // std::vector.
     std::vector<Tensor<1, dim>> local_u_real(n_q_points);
     std::vector<Tensor<1, dim>> local_u_imag(n_q_points);
     std::vector<double>         local_p_real(n_q_points);
@@ -1742,7 +1753,7 @@ namespace Step100
                     continue;
                   }
 
-                // Has mentionned earlier, to compute the error for the
+                // Has mentioned earlier, to compute the error for the
                 // $\hat{u}_n$ we need to do the scalar product of the
                 // analytical solution with the normal vector at the face
                 // quadrature points. We also take the absolute of the values
@@ -1905,9 +1916,9 @@ int main()
       // difference between the test and trial spaces <code>delta_degree</code>,
       // the wavenumber <code>wavenumber</code>, and the angle of incidence of
       // the plane wave <code>theta</code> in radians.
-      int    degree       = 1;
+      int    degree       = 2;
       int    delta_degree = 1;
-      double wavenumber   = 4 * M_PI;
+      double wavenumber   = 20 * M_PI;
       double theta        = M_PI / 4.;
 
       std::cout << "===========================================" << std::endl
