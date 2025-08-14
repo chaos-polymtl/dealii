@@ -345,9 +345,9 @@ namespace Step100
   // that we rely on multiple DoFHandler and FESystem. The DoFHandlers that we
   // rely on are the following:
   // - The <code>dof_handler_trial_interior</code> is for the unknowns in the
-  // interior of the cells
+  // interior of the cells;
   // - The <code>dof_handler_trial_skeleton</code> is for the unknowns in the
-  // skeleton
+  // skeleton;
   // - The <code>dof_handler_test</code> is for the test functions. Although we
   // do not use the unknowns associated with this DoFHandler, it enables us to
   // evaluate the test function we will use in DPG.
@@ -365,8 +365,8 @@ namespace Step100
   class DPGHelmholtz
   {
   public:
-    // The constructor takes as an argument the <code>degree </code> of the
-    // trial space as well as the  <code>delta_degree </code> between the trial
+    // The constructor takes as an argument the <code>degree</code> of the
+    // trial space as well as the  <code>delta_degree</code> between the trial
     // space and the test space which is necessary to construct the DPG problem.
     // The <code>delta_degree</code> must be at least 1 to ensure that the DPG
     // method is well posed. The parameter <code>theta</code> determines the
@@ -384,7 +384,7 @@ namespace Step100
   private:
     // The <code>setup_system</code> function initializes the three DoFHandlers,
     // the system matrix and right-hand side and establishes the boundary
-    // conditions that rely on constraints.
+    // conditions that rely on AffineConstraints.
 
     void setup_system();
 
