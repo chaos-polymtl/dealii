@@ -36,7 +36,7 @@ where $\omega$ is the angular frequency, $\mathbf{u}$ is the velocity field, $p^
     \mathbf{u} \cdot \mathbf{n} & = g_N, \quad \text{on } \Gamma_2, \\
     \mathbf{u} \cdot \mathbf{n}  - \frac{ k_n }{\omega} p^* & = g_R, \quad \text{on } \Gamma_1 \cup \Gamma_3,
 @f}
-where the subscript numbers follow the same nomenclature as the one for a rectangular geometry obtained from the GridGenerator class, $k_n$ is the wavenumber in the direction of the surface normal and $g_{D,N,R}$  refers to Dirichlet, Neuman and Robin boundary conditions terms.
+where the subscript numbers follow the same nomenclature as the one for a rectangular geometry obtained from the GridGenerator class, $k_n$ is the wavenumber in the direction of the surface normal and $g_{D,N,R}$ refers to Dirichlet, Neuman and Robin boundary conditions terms.
 
 To validate our implementation and study the effect of the angular frequency on our system, we choose the boundaries and source term so the expected solution is a plane wave travelling in the direction $\theta \in [0, \pi /2]$, i.e. :
 @f{align*}{
