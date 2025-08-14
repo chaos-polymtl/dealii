@@ -1054,14 +1054,14 @@ namespace Step100
               face->at_boundary() ? face->boundary_id() : -1;
 
             // The Robin boundary conditions in our plane wave problem have a
-            // factor $\frac{\mathbf{k} \cot \mathbf{n}}{\omega}$. However,
-            // $\omega = k c_s$ with $c_s=1$ and $\mathbf{k} \cot \mathbf{n}$ is
-            // either $k\cos{\theta}$ for the right boundary or $k\sin{\theta}$
-            // for the top boundary because of our domain geometry. The
-            // wavenumber simplifies and we are left with the cosine and sine
-            // for the value of this factor, which we compute in advance
-            // according to the just obtained boundary id. Note that this
-            // implies that the term is always real for our case and
+            // factor $\frac{\mathbf{k} \cdot \mathbf{n}}{\omega}$. However,
+            // $\omega = k c_s$ with $c_s=1$ and $\mathbf{k} \cdot \mathbf{n}$
+            // is either $k\cos{\theta}$ for the right boundary or
+            // $k\sin{\theta}$ for the top boundary because of our domain
+            // geometry. The wavenumber simplifies and we are left with the
+            // cosine and sine for the value of this factor, which we compute in
+            // advance according to the just obtained boundary id. Note that
+            // this implies that the term is always real for our case and
             // $\overline{\frac{k_n}{\omega}} = \frac{k_n}{\omega}$ in what
             // follows.
             const double kn_omega = (current_boundary_id == 1) ? cos(theta) :
@@ -1860,7 +1860,7 @@ namespace Step100
   template <int dim>
   void DPGHelmholtz<dim>::run()
   {
-    for (unsigned int cycle = 0; cycle < 5; ++cycle)
+    for (unsigned int cycle = 0; cycle < 8; ++cycle)
       {
         std::cout << "===========================================" << std::endl
                   << "Cycle " << cycle << ':' << std::endl;

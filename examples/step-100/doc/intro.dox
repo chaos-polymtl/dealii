@@ -291,11 +291,11 @@ Finally, because of the block of zeroes in the DPG system matrix, it is common t
 @f}
 where $u_h = \{\mathbf{u},p^*\}$ and $\hat{u}_h = \{\hat{u}_n,\hat{p}^*\}$. To avoid extra computational cost when solving the matrix, the system can be further condensed to only solve for the interfaces unknowns since interior unknowns are discontinuous across element. By posing the following:
 @f{align*}{
- & M_1 = B^\dagger G^{-1}B, & M_2 = B^\dagger G^{-1}\hat{B}, && M_3 = \hat{B}^\dagger G^{-1}\hat{B}, && M_4 = B^\dagger G^{-1} && M_5 = \hat{B}^\dagger G^{-1},
+ & M_1 = B^\dagger G^{-1}B, & M_2 = B^\dagger G^{-1}\hat{B}, && M_3 = \hat{B}^\dagger G^{-1}\hat{B} - D, && M_4 = B^\dagger G^{-1} && M_5 = \hat{B}^\dagger G^{-1},
  @f}
 we can simply solve the system :
 @f{equation*}{
-    (M_3 - D - M_2^\dagger M_1^{-1} M_2) \hat{u}_h = (M_5 - M_2^\dagger M_1^{-1} M_4) l - g,
+    (M_3 - M_2^\dagger M_1^{-1} M_2) \hat{u}_h = (M_5 - M_2^\dagger M_1^{-1} M_4) l - g,
 @f}
 to obtain the solution on the mesh and then use it to recover the solution $u_h$,  with the following relation:
 @f{equation*}{
