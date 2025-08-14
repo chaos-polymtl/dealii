@@ -11,13 +11,13 @@ RGPIN-2020-04510, by Compute Canada and Calcul Québec.
 
 <!-- Introduction to the time-harmonic Helmholtz and why we would like to use DPG to solve the Helmholtz equation. As well as the difficulties with this equations -->
 
-As a follow up to the Helmholtz equation "with the nice sign" of step-7, here we will consider the version with <a href="https://en.wikipedia.org/wiki/Helmholtz_equation">equation with the "bad sign"</a> , also refered as the indefinite Helmholtz equation:
+As a follow up to the Helmholtz equation "with the nice sign" of step-7, here we will consider the version of the <a href="https://en.wikipedia.org/wiki/Helmholtz_equation">equation with the "bad sign"</a> , also refered as the indefinite Helmholtz equation:
 @f[
   -\Delta u - \alpha u = f.
 @f]
-This equation naturally arise when ones interested in time-harmonic processes in electromagnetic or accoustic for example as it represents the time-independent form of the wave equation. This simple equation has multiple issues numerically which becomes more and more pronounce as the constant $\alpha>0$ becomes large. Notably, the wavelenght scale of the oscillatory behavior under study must be sufficiently resolve to obtain an accurate solution and $\alpha$ cannot be one of the natural frequency of the system or the resulting operator will not be invertible since the equation has all the harmonics as solution.
+This equation naturally arise when one is interested in time-harmonic processes in electromagnetic or accoustic, for example, as it represents the time-independent form of the wave equation. When solving this equation numerically, multiple issues arise as the constant $\alpha>0$ becomes large. Notably, the wavelength scale of the oscillatory behavior under study must be sufficiently resolved to obtain an accurate solution and $\alpha$ cannot be one of the natural frequency of the system or the resulting operator will not be invertible since the equation has all the harmonics as a solution.
 
-Among the numerical difficulties that arise from this equation, one that is really desabling is the indefinitness of the operator. It hinders the ability of classical iterative methods to solve the system and most preconditioners fail to lead to a convergent method as explained in details by <a href="https://www.unige.ch/~gander/Preprints/HelmholtzReview.pdf">O. Ernst and M. J. Gander.</a> A solution to this problem is to make our discretized system of equation positive definite, which bring us to the subject of this tutorial, the <a href="https://www.cambridge.org/core/services/aop-cambridge-core/content/view/71BCF32CDE92B0924051FA31E8F54DC2/S0962492924000102a.pdf/discontinuous_petrovgalerkin_method.pdf"> Discontinuous Petrov-Galerkin (DPG) method </a>. This way of solving the equation can be classified as a residual minimization method and always yields an Hermitian positive definite stiffness matrix systems. It follows that using this method allows for the use of the preconditioned Conjugate Gradients (CG) solver instead of a direct one such as UMFPACK.
+Among the numerical difficulties that arise from this equation, one that is really challenging is the indefiniteness of the operator. It hinders the ability of classical iterative methods for linear system of equations to solve the system. Furthermore, most blackbox preconditioners fail to improve convergence as explained in details by <a href="https://www.unige.ch/~gander/Preprints/HelmholtzReview.pdf">O. Ernst and M. J. Gander.</a> A solution to this problem is to make our discretized system of equation positive definite, which bring us to the subject of this tutorial, the <a href="https://www.cambridge.org/core/services/aop-cambridge-core/content/view/71BCF32CDE92B0924051FA31E8F54DC2/S0962492924000102a.pdf/discontinuous_petrovgalerkin_method.pdf"> Discontinuous Petrov-Galerkin (DPG) method</a>. This approach can be classified as a residual minimization method and always yields an Hermitian positive definite stiffness matrix systems. It follows that using this method allows for the use of the preconditioned Conjugate Gradients (CG) linear solver instead of a direct solver.
 
 
 <h3>The time-harmonic Helmholtz equation</h3>
@@ -25,20 +25,20 @@ Among the numerical difficulties that arise from this equation, one that is real
 <!-- Description of the time-harmonic Helmholtz equation. Equations for the boundary conditions. Weak form and ultra-weak form. -->
 <!-- We choose ultra weak and we solve it with DPG this is generally what is done in the literature. -->
 
-For our case study of the indefinite Helmholtz equation, we will consider the linear acoustic equations in a 2D square domain $[0,1] \times [0,1]$.:
+For our case study of the indefinite Helmholtz equation, we consider the linear acoustic equations in a 2D square domain $[0,1] \times [0,1]$:
 @f{align*}{
     i\omega \mathbf{u} + \nabla p^*                         & = 0, \quad \text{in } \Omega, \qquad \text{(Linear momentum)}\\
     i\omega \frac{p^*}{c_s^2} + \nabla \cdot \mathbf{u}     & = f, \quad \text{in } \Omega \qquad \text{(Conservation of mass)}.
 @f}
-where $\omega$ is the angular frequency, $\mathbf{u}$ is the velocity field, $p^*$ is the kinematic pressure ($p/\rho$), $c_s$ is the speed of sound, $k_n$ is the wavenumber in the direction of the surface normal and $f$ is a source term. For simplicity, we choose $c_s=1$ and we omit the factor in what follows. We will also consider all the possible types of boundaries $\Gamma$ to show case their different implementation in the framework:
+where $\omega$ is the angular frequency, $\mathbf{u}$ is the velocity field, $p^*$ is the kinematic pressure ($p/\rho$), $c_s$ is the speed of sound, and $f$ is a source term. For simplicity, we consider $c_s=1$. We will also consider all the possible types of boundaries $\Gamma$ to showcase their different implementation in the framework:
 @f{align*}{
     p^* & = g_D, \quad \text{on } \Gamma_0, \\
     \mathbf{u} \cdot \mathbf{n} & = g_N, \quad \text{on } \Gamma_2, \\
     \mathbf{u} \cdot \mathbf{n}  - \frac{ k_n }{\omega} p^* & = g_R, \quad \text{on } \Gamma_1 \cup \Gamma_3,
 @f}
-where the subscript numbers follow the same nomenclature as the one for a rectangular geometry obtained from the GridGenerator class and $g_{D,N,R}$  refers are the Dirichlet, Neuman and Robin boundary conditions source term.
+where the subscript numbers follow the same nomenclature as the one for a rectangular geometry obtained from the GridGenerator class, $k_n$ is the wavenumber in the direction of the surface normal and $g_{D,N,R}$  refers to Dirichlet, Neuman and Robin boundary conditions terms.
 
-To validate our implementation and study the effect of the angular frequency on our system, we choose the boundaries and source term so the expected solution is the one of a plane wave travelling in the direction $\theta \in [0, \pi /2]$, i.e. :
+To validate our implementation and study the effect of the angular frequency on our system, we choose the boundaries and source term so the expected solution is a plane wave travelling in the direction $\theta \in [0, \pi /2]$, i.e. :
 @f{align*}{
     f &= 0 \\
     g_D &= e^{-i k y \sin(\theta)},\\
@@ -71,14 +71,14 @@ However, it has been shown from previous DPG study that the ultraweak formulatio
 <h3>The Discontinuous Petrov-Galerkin Method</h3>
 
 <!-- Introduction of the DPG method. -->
-There are numerous papers that describes the mathematics behind the DPG method in the literature consequently, here we will give minimal details for the reader comprehension and focus mainly on the key element necessary for the understanding of the numerical implementation. Let’s start with a standard abstract problem defined on the product of the trial and test Hilbert spaces $U \times V$. We want to find the solution to the following problem:
+There are numerous papers that describe the mathematics behind the DPG method, here we will focus mainly on the key elements necessary to understand the numerical implementation. Let’s start with a standard abstract problem defined on the product of the trial and test Hilbert spaces $U \times V$. We want to find the solution to the following problem:
 @f{equation*}{
     \begin{cases}
         b(u,v) = l(v) \quad \forall v \in V, \\
         u \in U,
     \end{cases}
 @f}
-where $b(u,v)$ is a continuous bilinear form and $l(v)$ is a continuous linear form and it is assumed that the problem is well-posed (i.e., the continuous inf-sup condition holds). This can be reformulated as an operator equation by defining the operator $B: U \rightarrow V'$ such that :
+where $b(u,v)$ is a continuous bilinear form and $l(v)$ is a continuous linear form. Furthermore, we assume that the problem is well-posed (i.e., the continuous inf-sup condition holds). This can be reformulated as an operator equation by defining the operator $B: U \rightarrow V'$ such that :
 @f{equation*}{
     b(u,v) = \langle B u, v \rangle_{V' \times V},
 @f}
@@ -90,7 +90,7 @@ where $u_h$ is the discrete approximated solution. However, numerically computin
 @f{equation*}{
     u_h = \arg \min_{w_h \in U_h} \frac{1}{2} \| R^{-1}(l - B w_h) \|_{V}^2.
 @f}
-This solves the problem of computing the norm of the dual space. Still, it is now required to inverse the Riesz operator. This is not achievable numerically because the Riesz map is related to the infinite-dimensional space $V$ and its inversion would be prohibitively expensive. To overcome this, the test space is "broken" between each individual element and enriched by raising its polynomial degree by $\Delta p$ (typically chosen to be 1 or 2) compared to the trial space. The resulting finite-dimensional space  $V^r \subset V$ is now a truncated version of the original space, nonetheless, it can fully represent the Riesz map on each element by the Gram matrix.  Because the test functions have now no conformity assumptions across the inter-element boundaries the method requires the introduction of interfaces unknowns, also referred to as Lagrange multipliers $\hat{u}$, to enforce the continuity of the test functions across the element boundaries. With all this, the final form of the abstract problem that needs to be solved in a DPG setting is:
+This solves the problem of computing the norm of the dual space. Still, we now require the inverse Riesz operator. This is not achievable numerically because the Riesz map is related to the infinite-dimensional space $V$ and its inversion would be prohibitively expensive. To overcome this, the test space is "broken" between each individual element and enriched by raising its polynomial degree by $\Delta p$ (typically chosen to be 1 or 2) compared to the trial space. The resulting finite-dimensional space  $V^r \subset V$ is now a truncated version of the original space, nonetheless, it can fully represent the Riesz map on each element by the Gram matrix.  Because the test functions have now no conformity assumptions across the inter-element boundaries the method requires the introduction of interfaces unknowns, also referred to as Lagrange multipliers $\hat{u}$, to enforce the continuity of the test functions across the element boundaries. With all this, the final form of the abstract problem that needs to be solved in a DPG setting is:
 @f{equation*}{
     \label{eq:DPG_abstract_problem}
     \begin{cases}
@@ -100,7 +100,7 @@ This solves the problem of computing the norm of the dual space. Still, it is no
         \langle \hat{w}_h, \Psi^r \rangle = 0, \quad \forall \hat{w}_h \in \hat{U}_h,
     \end{cases}
 @f}
-where $\Psi^r = R^{-1}_r(l-Bu_h)$. Finally, by defining the bases for discretized trial space $U_h \times \hat{U}_h$ and the discretized broken test space $V^r(\Omega_h)$, such that $U_h = \text{span}\{ \phi_i \}_{i=1}^{N_u}$, $\hat{U}_h = \text{span}\{ \hat{\phi}_i \}_{i=1}^{N_{\hat{u}}}$ and $V^r= \text{span}\{ \Psi_i \}_{i=1}^{N_v}$, where $N_v > N_u + N_{\hat{u}}$, the problem can be solved numerically by asking to find the set of coefficients:
+where $\Psi^r = R^{-1}_r(l-Bu_h)$. Finally, by defining the bases for discretized trial space $U_h \times \hat{U}_h$ and the discretized broken test space $V^r(\Omega_h)$, such that $U_h = \text{span}\{ \phi_i \}_{i=1}^{N_u}$, $\hat{U}_h = \text{span}\{ \hat{\phi}_i \}_{i=1}^{N_{\hat{u}}}$ and $V^r= \text{span}\{ \Psi_i \}_{i=1}^{N_v}$, where $N_v > N_u + N_{\hat{u}}$, the problem can be solved numerically by finding the set of coefficients:
 @f[
     \mathbf{w} = [w_i]_{i=1}^{N_u} \in \mathbb{F}^{N_u}, \quad
     \hat{\mathbf{w}} = [\hat{w}_i]_{\hat{i}=1}^{N_{\hat{u}}} \in \mathbb{F}^{N_{\hat{u}}}, \quad
@@ -112,7 +112,7 @@ such that:
     \hat{u}_h = \sum_{i=1}^{N_{\hat{u}}} \hat{w}_i \hat{\phi}_i, \quad
     \Psi^r = \sum_{i=1}^{N_v} q_i \Psi_i
 @f]
-satisfy the following matrix system:
+satisfy the following system:
 @f{equation*}{
     \begin{pmatrix}
         G               & B & \hat{B} \\
@@ -131,7 +131,7 @@ satisfy the following matrix system:
         0
     \end{pmatrix},
 @f}
-where the $\dagger$ symbol is used to denote the conjugate transpose operation. Solving this system of linear equation is analogous to solving a general overdetermined system in a least squares sense with a residual $\Psi^r$. This is why the DPG method always produces hermitian positive definite systems of equations and that $\Psi^r$ can be used to obtain an error indicator for adaptive hp-refinement.
+where the $\dagger$ symbol is used to denote the conjugate transpose operation. Solving this system of linear equation is analogous to solving a general overdetermined system in a least squares sense with a residual $\Psi^r$. This is why the DPG method always produces hermitian positive definite systems of equations. Furthermore, it shows that $\Psi^r$ can be used to obtain an error indicator for adaptive hp-refinement.
 
 <h4>Polynomial space</h4>
 
@@ -139,7 +139,7 @@ where the $\dagger$ symbol is used to denote the conjugate transpose operation. 
 <!-- Test space minimal order of the test space -->
 <!-- Energy norm -->
 
-As presented above, the DPG method is based on the idea that the test space is not bound to the same space as the one for the trial space and that it can be chosen to maximize the accuracy and the stability of the numerical procedure. Consequently, to implement the DPG method for any set of equations, one need to be able to discretize the whole exact sequence of energy spaces, which in 3D takes the form:
+As presented above, the DPG method is based on the idea that the test space is not bound to the same space as the one for the trial space and that it can be chosen to maximize the accuracy and the stability of the numerical method. Consequently, to implement the DPG method for any set of equations, one needs to be able to discretize the whole exact sequence of energy spaces, which in 3D takes the form:
 @f[
     H^1
     \xrightarrow{\nabla}
@@ -149,14 +149,14 @@ As presented above, the DPG method is based on the idea that the test space is n
     \xrightarrow{\nabla \cdot}
     L^2
 @f]
-Those spaces are defined as usual as :
+These spaces are defined as:
 @f{align*}{
      & H^1(\Omega) = \{ u : \Omega \to \mathbb{R}(\mathbb{C}) : u \in L^2(\Omega), \nabla u \in (L^2(\Omega))^3 \}                                                      \\
      & H(\text{curl}, \Omega) = \{ \mathbf{E} : \Omega \to \mathbb{R}^3(\mathbb{C}^3) : \mathbf{E} \in (L^2(\Omega))^3, \nabla \times \mathbf{E} \in (L^2(\Omega))^3 \} \\
      & H(\text{div}, \Omega) = \{ \mathbf{v} : \Omega \to \mathbb{R}^3(\mathbb{C}^3) : \mathbf{v} \in (L^2(\Omega))^3, \nabla \cdot \mathbf{v} \in L^2(\Omega) \}       \\
      & L^2(\Omega) = \{ q : \Omega \to \mathbb{R}(\mathbb{C}) : \|q\| < \infty \}
 @f}
-In addition, the continuity requirements along faces and edges (the skeleton of the mesh), is also enforced with a different space because it lives in $dim -1$ dimensions. So we also need to define this sequence of energy space for the skeleton, which are the following:
+In addition, the continuity requirements along faces and edges (the skeleton of the mesh), is also enforced with a different space because it lives in $dim -1$ dimensions. Thus, we also need to define this sequence of energy space for the skeleton:
 @f{align*}{
     H^{1/2}(\partial K)               & = \text{tr}_{\text{grad}}(H^1(\Omega_h))  :=  \prod_{K \in \Omega_h} u\big|_{\partial K}                                                                    \\
     H^{-1/2}(\text{curl}, \partial K) & = \text{tr}_{\text{curl}, \top}(H(\text{curl}, \Omega_h)) := \prod_{K \in \Omega_h} (\mathbf{n}_K \times \mathbf{E}) \times \mathbf{n}_K \big|_{\partial K} \\
@@ -164,7 +164,7 @@ In addition, the continuity requirements along faces and edges (the skeleton of 
     H^{-1/2}(\partial K)              & = \text{tr}_{\text{div}}(H(\text{div}, \Omega_h)) := \prod_{K \in \Omega_h}  (\mathbf{n}_K \cdot \textbf{v} ) \big|_{\partial K}
 @f}
 
-<h4>Elementary system</h4>
+<h4>Application to the accoustic Helmholtz equation</h4>
 
 <!-- Application to ultra-weak form of Helmhotlz equation-->
 Now if we apply the DPG method to the acoustic Helmholtz ultraweak formulation presented above, we get the following :
@@ -173,12 +173,12 @@ Now if we apply the DPG method to the acoustic Helmholtz ultraweak formulation p
 & (i \omega \mathbf{u}, \overline{\mathbf{v}})_{\Omega_h} - (p^*, \overline{\nabla \cdot \mathbf{v}})_{\Omega_h} + \langle \hat{p}^*, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\partial \Omega_h} + \langle \hat{p}^*, \overline{\mathbf{v} \cdot \mathbf{n}} \rangle_{\Gamma} = 0, \quad \forall \mathbf{v} \in H(\text{div}, K), \\
     &(i\omega p^*, \overline{q})_{\Omega_h} - (\mathbf{u}, \overline{\nabla q})_{\Omega_h} + \langle \hat{u}_n,\overline{q} \rangle_{\partial \Omega_h} + \langle \hat{u}_n,\overline{q} \rangle_{\Gamma} = (f, \overline{q})_{\Omega_h}, \quad \forall q \in H^1(K).
 @f}
-where we made explicit the difference between the mesh skeleton terms $\hat{u}_n$ and $\hat{p}^*$ and the interior terms $\mathbf{u}$ and $p^*$ along with a distinction between the skeleton ($\partial \Omega_h$) and the boundary ($\Gamma$). From the ultraweak formulation, we can identify the space of our problem :
+where we explicit the difference between the mesh skeleton terms $\hat{u}_n$ and $\hat{p}^*$ and the interior terms $\mathbf{u}$ and $p^*$ along with a distinction between the skeleton ($\partial \Omega_h$) and the boundary ($\Gamma$). From the ultraweak formulation, we can identify the functional space of our problem:
 @f{align*}{
      & U = (L^2(\Omega))^{dim} \times L^2(\Omega) \times H^{-1/2}(\partial \Omega_h) \times H^{1/2}(\partial \Omega_h) , \\
      & V = H(\text{div}, \Omega_h) \times H^1(\Omega_h).
 @f}
-From it, we can also directly define the adjoint graph norm which will be used to build the Gram matrix and control the residual :
+From it, we can also directly define the adjoint graph norm which will be used to build the Gram matrix and control the residual:
 @f{equation*}{
      \|(\mathbf{v}, q)\|^2_V := \|A^* (\mathbf{v}, q)\|^2 + \alpha^2 (\|\mathbf{v}\|^2 + \|q\|^2 )= \|\ \overline{i\omega} \mathbf{v} - \nabla q \|^2 + \| \overline{i\omega} q - \nabla \cdot \mathbf{v}\|^2 + \|\mathbf{v}\|^2 + \|q\|^2,
 @f}
@@ -190,7 +190,7 @@ where $\alpha = \mathcal{O}(1)$ is a scaling parameter necessary for the stabili
 <!-- Forme ultra weak -->
 <!-- Modification of energy norm -->
 
-When using the ultraweak form, we can readily implement both Dirichlet and Neumann boundary conditions --- which are in fact a Dirichlet boundary condition on the flux variable of our problem, here the fluid velocity ---  by fixing the corresponding node to the desired value. However, careful attention needs to be made with Robin boundary conditions because they tie together the two fields of interest and we do not want to overconstrain the system. To do so, here we will present the method proposed by <a href="https://web.pdx.edu/~gjay/pub/schwarzdpg.pdf"> J. Gopalakrishnan and J.  Schöberl</a>. We therefore add an approximate version of the $\mathbf{u} \cdot \mathbf{n}  - \frac{ k_n }{\omega} p^* = g_R$ into our system by adding the term:
+When using the ultraweak form, we can readily implement both Dirichlet and Neumann boundary conditions. The latter are in fact a Dirichlet boundary condition on the flux variable of our problem, here the fluid velocity. However, careful attention needs to be made with Robin boundary conditions because they tie together the two fields of interest and we do not want to overconstrain the system. To do so, here we will present the method proposed by <a href="https://web.pdx.edu/~gjay/pub/schwarzdpg.pdf"> J. Gopalakrishnan and J.  Schöberl</a>. We therefore add an approximate version of the $\mathbf{u} \cdot \mathbf{n}  - \frac{ k_n }{\omega} p^* = g_R$ into our system by adding the term:
 @f{align*}{
     \pm \bigg\langle \hat{u}_n - \frac{ k_n}{\omega} \hat{p}^*, \overline{\hat{w}_n - \frac{ k_n}{\omega} \hat{r}^*}  \bigg \rangle_{\Gamma_1 \cup \Gamma_3} = \pm \bigg\langle g_R,\overline{\hat{w}_n - \frac{ k_n}{\omega} \hat{r}^*} \bigg \rangle_{\Gamma_1 \cup \Gamma_3}, \quad \forall \hat{w}_n \in H^{1/2}(\Gamma_1 \cup \Gamma_3), \hat{r}^* \in H^{-1/2}(\Gamma_1 \cup \Gamma_3)
 @f}
@@ -289,7 +289,7 @@ Finally, because of the block of zeroes in the DPG system matrix, it is common t
         \hat{B}^\dagger G^{-1}l - g
     \end{pmatrix},
 @f}
-where $u_h = \{\mathbf{u},p^*\}$ and $\hat{u}_h = \{\hat{u}_n,\hat{p}^*\}$. To avoid extra computational cost when solving the matrix, the system can be further condensed to only solve for the interfaces unknowns since interior unknowns are discontinuous across element. By posing the following:
+where $u_h = \{\mathbf{u},p^*\}$ and $\hat{u}_h = \{\hat{u}_n,\hat{p}^*\}$. To avoid extra computational cost when solving the matrix, the system can be further condensed to solve only for the interfaces degree of freedom since the interior degrees of freedom are discontinuous across element and can be locally condensed. By posing the following:
 @f{align*}{
  & M_1 = B^\dagger G^{-1}B, & M_2 = B^\dagger G^{-1}\hat{B}, && M_3 = \hat{B}^\dagger G^{-1}\hat{B} - D, && M_4 = B^\dagger G^{-1} && M_5 = \hat{B}^\dagger G^{-1},
  @f}
@@ -301,4 +301,4 @@ to obtain the solution on the mesh and then use it to recover the solution $u_h$
 @f{equation*}{
     u_h = M_1^{-1} (M_4 l - M_2 \hat{u}_h).
 @f}
-This is the method that will be presented in the code below.
+This is the method that is presented in the code that follows.
