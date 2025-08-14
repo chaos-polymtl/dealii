@@ -1351,15 +1351,13 @@ else
         // invert it.
         G_matrix.invert();
 
-        // We construct $M_4 = B^\dagger G^{-1}$ and
-        // $M_5 = \hat{B}^\dagger G^{-1}$ with it:
+        // We construct $M_4 = B^\dagger G^{-1}$ and $M_5 = \hat{B}^\dagger G^{-1}$ with it:
         B_matrix.Tmmult(M4_matrix, G_matrix);
         B_hat_matrix.Tmmult(M5_matrix, G_matrix);
 
         // Then using $M_4$ we compute the condensed matrix
         // $M_1 = B^\dagger G^{-1} B$ and
-        // $M_2 = B^\dagger G^{-1} \hat{B}$
-        // :
+        // $M_2 = B^\dagger G^{-1} \hat{B}$:
         M4_matrix.mmult(M1_matrix, B_matrix);
         M4_matrix.mmult(M2_matrix, B_hat_matrix);
 
