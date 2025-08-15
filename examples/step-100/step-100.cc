@@ -649,7 +649,9 @@ namespace Step100
     // spaces. Here we choose the trial space.
     FEValues<dim> fe_values_trial_interior(fe_trial_interior,
                                            quadrature_formula,
-                                           update_values | update_JxW_values);
+                                           update_values |
+                                             update_quadrature_points |
+                                             update_JxW_values);
 
     FEValues<dim> fe_values_test(fe_test,
                                  quadrature_formula,
@@ -658,6 +660,7 @@ namespace Step100
     FEFaceValues<dim> fe_values_trial_skeleton(fe_trial_skeleton,
                                                face_quadrature_formula,
                                                update_values |
+                                                 update_quadrature_points |
                                                  update_normal_vectors |
                                                  update_JxW_values);
 
@@ -766,8 +769,9 @@ namespace Step100
     // computations as it is done in step-81. Also, because the phase velocity
     // is 1, the wavenumber $k$ is equivalent to the angular
     // frequency $omega$.
-    const std::complex<double> iomega(0, wavenumber);
-    const std::complex<double> iomega_conj = conj(iomega);
+    constexpr std::complex<double> imag(0., 1.);
+    const std::complex<double>     iomega      = imag * wavenumber;
+    const std::complex<double>     iomega_conj = conj(iomega);
 
     // As it is standard we first loop over the cells of the triangulation. Here
     // we have the choice of the DoFHandler to perform this loop. We use the
@@ -814,77 +818,50 @@ namespace Step100
 
             for (unsigned int k : fe_values_test.dof_indices())
               {
-                v[k][0].real(
-                  fe_values_test[extractor_u_real].value(k, q_point)[0]);
-                v[k][1].real(
-                  fe_values_test[extractor_u_real].value(k, q_point)[1]);
-                v[k][0].imag(
-                  fe_values_test[extractor_u_imag].value(k, q_point)[0]);
-                v[k][1].imag(
-                  fe_values_test[extractor_u_imag].value(k, q_point)[1]);
-                v_conj[k][0].real(
-                  fe_values_test[extractor_u_real].value(k, q_point)[0]);
-                v_conj[k][1].real(
-                  fe_values_test[extractor_u_real].value(k, q_point)[1]);
-                v_conj[k][0].imag(
-                  -fe_values_test[extractor_u_imag].value(k, q_point)[0]);
-                v_conj[k][1].imag(
-                  -fe_values_test[extractor_u_imag].value(k, q_point)[1]);
+                v[k] =
+                  fe_values_test[extractor_u_real].value(k, q_point) +
+                  imag * fe_values_test[extractor_u_imag].value(k, q_point);
+                v_conj[k] =
+                  fe_values_test[extractor_u_real].value(k, q_point) -
+                  imag * fe_values_test[extractor_u_imag].value(k, q_point);
 
-                div_v[k].real(
-                  fe_values_test[extractor_u_real].divergence(k, q_point));
-                div_v[k].imag(
-                  fe_values_test[extractor_u_imag].divergence(k, q_point));
+                div_v[k] =
+                  fe_values_test[extractor_u_real].divergence(k, q_point) +
+                  imag *
+                    fe_values_test[extractor_u_imag].divergence(k, q_point);
+                div_v_conj[k] =
+                  fe_values_test[extractor_u_real].divergence(k, q_point) -
+                  imag *
+                    fe_values_test[extractor_u_imag].divergence(k, q_point);
 
-                div_v_conj[k].real(
-                  fe_values_test[extractor_u_real].divergence(k, q_point));
-                div_v_conj[k].imag(
-                  -fe_values_test[extractor_u_imag].divergence(k, q_point));
+                q[k] =
+                  fe_values_test[extractor_p_real].value(k, q_point) +
+                  imag * fe_values_test[extractor_p_imag].value(k, q_point);
+                q_conj[k] =
+                  fe_values_test[extractor_p_real].value(k, q_point) -
+                  imag * fe_values_test[extractor_p_imag].value(k, q_point);
 
-                q[k].real(fe_values_test[extractor_p_real].value(k, q_point));
-                q[k].imag(fe_values_test[extractor_p_imag].value(k, q_point));
-                q_conj[k].real(
-                  fe_values_test[extractor_p_real].value(k, q_point));
-                q_conj[k].imag(
-                  -fe_values_test[extractor_p_imag].value(k, q_point));
-
-                grad_q[k][0].real(
-                  fe_values_test[extractor_p_real].gradient(k, q_point)[0]);
-                grad_q[k][1].real(
-                  fe_values_test[extractor_p_real].gradient(k, q_point)[1]);
-                grad_q[k][0].imag(
-                  fe_values_test[extractor_p_imag].gradient(k, q_point)[0]);
-                grad_q[k][1].imag(
-                  fe_values_test[extractor_p_imag].gradient(k, q_point)[1]);
-                grad_q_conj[k][0].real(
-                  fe_values_test[extractor_p_real].gradient(k, q_point)[0]);
-                grad_q_conj[k][1].real(
-                  fe_values_test[extractor_p_real].gradient(k, q_point)[1]);
-                grad_q_conj[k][0].imag(
-                  -fe_values_test[extractor_p_imag].gradient(k, q_point)[0]);
-                grad_q_conj[k][1].imag(
-                  -fe_values_test[extractor_p_imag].gradient(k, q_point)[1]);
+                grad_q[k] =
+                  fe_values_test[extractor_p_real].gradient(k, q_point) +
+                  imag * fe_values_test[extractor_p_imag].gradient(k, q_point);
+                grad_q_conj[k] =
+                  fe_values_test[extractor_p_real].gradient(k, q_point) -
+                  imag * fe_values_test[extractor_p_imag].gradient(k, q_point);
               }
 
             for (unsigned int k : fe_values_trial_interior.dof_indices())
               {
-                u[k][0].real(
-                  fe_values_trial_interior[extractor_u_real].value(k,
-                                                                   q_point)[0]);
-                u[k][1].real(
-                  fe_values_trial_interior[extractor_u_real].value(k,
-                                                                   q_point)[1]);
-                u[k][0].imag(
-                  fe_values_trial_interior[extractor_u_imag].value(k,
-                                                                   q_point)[0]);
-                u[k][1].imag(
-                  fe_values_trial_interior[extractor_u_imag].value(k,
-                                                                   q_point)[1]);
+                u[k] =
+                  fe_values_trial_interior[extractor_u_real].value(k, q_point) +
+                  imag *
+                    fe_values_trial_interior[extractor_u_imag].value(k,
+                                                                     q_point);
 
-                p[k].real(
-                  fe_values_trial_interior[extractor_p_real].value(k, q_point));
-                p[k].imag(
-                  fe_values_trial_interior[extractor_p_imag].value(k, q_point));
+                p[k] =
+                  fe_values_trial_interior[extractor_p_real].value(k, q_point) +
+                  imag *
+                    fe_values_trial_interior[extractor_p_imag].value(k,
+                                                                     q_point);
               }
 
             // We are now ready to loop on our test space indices "i".
@@ -937,9 +914,9 @@ namespace Step100
                            JxW)
                             .real();
                       }
-                    // If the dof <code>i</code> is in test function
-                    // $\mathbf{v}$ and dof <code>j</code> in test function $q$
-                    // we build the terms $-(\nabla q, i\omega \overline{
+                    // If the dof <code>i</code> is in test function $mathbf{v}$
+                    // and dof <code>j</code> in test function $q$ we build the
+                    // terms $-(\nabla q, i\omega \overline{
                     // \mathbf{v}})_{\Omega_h} - (\overline{ i\omega} q,
                     // \overline{\nabla \cdot \mathbf{v}})_{\Omega_h}$ :
                     else if (((current_element_test_i == 0) ||
@@ -955,9 +932,10 @@ namespace Step100
                       }
                     // If the dof <code>i</code> is in test function $q$ and the
                     // dof <code>j</code> is in the test function $\mathbf{v}$,
-                    // we build the terms $-(\overline{i\omega} \mathbf{v},
-                    // \overline{\nabla q})_{\Omega_h} - (\nabla \cdot
-                    // \mathbf{v}, i\omega \overline{ q})_{\Omega_h}$ :
+                    // we build the terms
+                    // $-(\overline{i\omega} \mathbf{v}, \overline{\nabla
+                    // q})_{\Omega_h} - (\nabla \cdot \mathbf{v}, i\omega
+                    // \overline{ q})_{\Omega_h}$ :
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_test_j == 0) ||
@@ -1007,7 +985,7 @@ namespace Step100
                          (current_element_trial_j == 1)))
                       {
                         B_matrix(i, j) +=
-                          (iomega * u[j] * v_conj[i] * JxW).real();
+                          ((iomega * u[j] * v_conj[i]) * JxW).real();
                       }
                     // If dof <code>i</code> in test function $\mathbf{v}$ and
                     // dof <code>j</code> in trial function $p$ we build the
@@ -1018,7 +996,7 @@ namespace Step100
                              ((current_element_trial_j == 2) ||
                               (current_element_trial_j == 3)))
                       {
-                        B_matrix(i, j) -= (p[j] * div_v_conj[i] * JxW).real();
+                        B_matrix(i, j) -= ((p[j] * div_v_conj[i]) * JxW).real();
                       }
 
                     // If dof <code>i</code> in test function $q$ and dof
@@ -1029,7 +1007,8 @@ namespace Step100
                              ((current_element_trial_j == 0) ||
                               (current_element_trial_j == 1)))
                       {
-                        B_matrix(i, j) -= (u[j] * grad_q_conj[i] * JxW).real();
+                        B_matrix(i, j) -=
+                          ((u[j] * grad_q_conj[i]) * JxW).real();
                       }
                     // If dof <code>i</code> in test function $q$ and dof
                     // <code>j</code> in trial function $p$ we build the term
@@ -1040,7 +1019,7 @@ namespace Step100
                               (current_element_trial_j == 3)))
                       {
                         B_matrix(i, j) +=
-                          (iomega * p[j] * q_conj[i] * JxW).real();
+                          ((iomega * p[j] * q_conj[i]) * JxW).real();
                       }
                   }
               }
@@ -1087,55 +1066,51 @@ namespace Step100
 
                 for (unsigned int k : fe_face_values_test.dof_indices())
                   {
-                    v_face_n[k].real(
+                    v_face_n[k] =
                       normal *
-                      fe_face_values_test[extractor_u_real].value(k, q_point));
-                    v_face_n[k].imag(
+                      (fe_face_values_test[extractor_u_real].value(k, q_point) +
+                       imag *
+                         fe_face_values_test[extractor_u_imag].value(k,
+                                                                     q_point));
+                    v_face_n_conj[k] =
                       normal *
-                      fe_face_values_test[extractor_u_imag].value(k, q_point));
-                    v_face_n_conj[k].real(
-                      normal *
-                      fe_face_values_test[extractor_u_real].value(k, q_point));
-                    v_face_n_conj[k].imag(
-                      -normal *
-                      fe_face_values_test[extractor_u_imag].value(k, q_point));
+                      (fe_face_values_test[extractor_u_real].value(k, q_point) -
+                       imag *
+                         fe_face_values_test[extractor_u_imag].value(k,
+                                                                     q_point));
 
-                    q_face[k].real(
-                      fe_face_values_test[extractor_p_real].value(k, q_point));
-                    q_face[k].imag(
-                      fe_face_values_test[extractor_p_imag].value(k, q_point));
-                    q_face_conj[k].real(
-                      fe_face_values_test[extractor_p_real].value(k, q_point));
-                    q_face_conj[k].imag(
-                      -fe_face_values_test[extractor_p_imag].value(k, q_point));
+                    q_face[k] =
+                      fe_face_values_test[extractor_p_real].value(k, q_point) +
+                      imag *
+                        fe_face_values_test[extractor_p_imag].value(k, q_point);
+                    q_face_conj[k] =
+                      fe_face_values_test[extractor_p_real].value(k, q_point) -
+                      imag *
+                        fe_face_values_test[extractor_p_imag].value(k, q_point);
                   }
                 for (unsigned int k : fe_values_trial_skeleton.dof_indices())
                   {
-                    u_hat_n[k].real(
+                    u_hat_n[k] =
                       fe_values_trial_skeleton[extractor_u_hat_real].value(
-                        k, q_point));
-                    u_hat_n[k].imag(
-                      fe_values_trial_skeleton[extractor_u_hat_imag].value(
-                        k, q_point));
-
-                    u_hat_n_conj[k].real(
+                        k, q_point) +
+                      imag * fe_values_trial_skeleton[extractor_u_hat_imag]
+                               .value(k, q_point);
+                    u_hat_n_conj[k] =
                       fe_values_trial_skeleton[extractor_u_hat_real].value(
-                        k, q_point));
-                    u_hat_n_conj[k].imag(
-                      -fe_values_trial_skeleton[extractor_u_hat_imag].value(
-                        k, q_point));
+                        k, q_point) -
+                      imag * fe_values_trial_skeleton[extractor_u_hat_imag]
+                               .value(k, q_point);
 
-                    p_hat[k].real(fe_values_trial_skeleton[extractor_p_hat_real]
-                                    .value(k, q_point));
-                    p_hat[k].imag(fe_values_trial_skeleton[extractor_p_hat_imag]
-                                    .value(k, q_point));
-
-                    p_hat_conj[k].real(
+                    p_hat[k] =
                       fe_values_trial_skeleton[extractor_p_hat_real].value(
-                        k, q_point));
-                    p_hat_conj[k].imag(
-                      -fe_values_trial_skeleton[extractor_p_hat_imag].value(
-                        k, q_point));
+                        k, q_point) +
+                      imag * fe_values_trial_skeleton[extractor_p_hat_imag]
+                               .value(k, q_point);
+                    p_hat_conj[k] =
+                      fe_values_trial_skeleton[extractor_p_hat_real].value(
+                        k, q_point) -
+                      imag * fe_values_trial_skeleton[extractor_p_hat_imag]
+                               .value(k, q_point);
                   }
 
                 // We loop over the test space face dofs with indices
@@ -1156,6 +1131,7 @@ namespace Step100
                           {
                             const unsigned int current_element_test_j =
                               fe_test.system_to_base_index(j).first.first;
+
 
                             // We build $ \langle \mathbf{v} \cdot \mathbf{n},
                             //  \overline{\mathbf{v} \cdot \mathbf{n}}
@@ -1228,7 +1204,7 @@ namespace Step100
                              (current_element_trial_j == 3)))
                           {
                             B_hat_matrix(i, j) +=
-                              (p_hat[j] * v_face_n_conj[i] * JxW_face).real();
+                              ((p_hat[j] * v_face_n_conj[i]) * JxW_face).real();
                           }
 
                         // We build the term $\left\langle \hat{u}_n,
@@ -1263,7 +1239,7 @@ namespace Step100
                               neighbor_cell_id > cell->index() ? 1. : -1.;
 
                             B_hat_matrix(i, j) +=
-                              (flux_orientation * u_hat_n[j] * q_conj[i] *
+                              (flux_orientation * u_hat_n[j] * q_face_conj[i] *
                                JxW_face)
                                 .real();
                           }
