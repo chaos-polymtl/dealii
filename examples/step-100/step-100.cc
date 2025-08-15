@@ -932,10 +932,9 @@ namespace Step100
                       }
                     // If the dof <code>i</code> is in test function $q$ and the
                     // dof <code>j</code> is in the test function $\mathbf{v}$,
-                    // we build the terms
-                    // $-(\overline{i\omega} \mathbf{v}, \overline{\nabla
-                    // q})_{\Omega_h} - (\nabla \cdot \mathbf{v}, i\omega
-                    // \overline{ q})_{\Omega_h}$ :
+                    // we build the terms $-(\overline{i\omega} \mathbf{v},
+                    // \overline{\nabla q})_{\Omega_h} - (\nabla \cdot
+                    // \mathbf{v}, i\omega \overline{ q})_{\Omega_h}$ :
                     else if (((current_element_test_i == 2) ||
                               (current_element_test_i == 3)) &&
                              ((current_element_test_j == 0) ||
@@ -1047,9 +1046,8 @@ namespace Step100
             // geometry. The wavenumber simplifies and we are left with the
             // cosine and sine for the value of this factor, which we compute in
             // advance according to the boundary id. Note that, in our case,
-            // the term is always real and
-            // $\overline{\frac{k_n}{\omega}} = \frac{k_n}{\omega}$ in what
-            // follows.
+            // the term is always real and  $\overline{\frac{k_n}{\omega}} =
+            // \frac{k_n}{\omega}$ in what follows.
             const double kn_omega = (current_boundary_id == 1) ? cos(theta) :
                                     (current_boundary_id == 3) ? sin(theta) :
                                                                  1.;
@@ -1227,10 +1225,11 @@ namespace Step100
                             // face without the need for a global cell
                             // orientation. The rule used here is based on the
                             // cell index. The flux is always oriented from the
-                            // lowest cell index to the highest cell index. At,
-                            // boundaries, we follow the standard convention
+                            // lowest cell index to the highest cell index. At
+                            // boundaries we follow the standard convention
                             // that the normal is oriented outward from the
-                            // domain so the flux is equal to 1.
+                            // domain and the flux is align with the normal
+                            // (i.e., it equals 1).
                             const int neighbor_cell_id =
                               face->at_boundary() ?
                                 INT_MAX :
@@ -1360,16 +1359,13 @@ namespace Step100
         B_matrix.Tmmult(M4_matrix, G_matrix);
         B_hat_matrix.Tmmult(M5_matrix, G_matrix);
 
-        // Then using $M_4$ we compute the condensed matrix
-        // $M_1 = B^\dagger G^{-1} B$ and
-        // $M_2 = B^\dagger G^{-1} \hat{B}$:
+        // Then using $M_4$ we compute the condensed matrix $M_1 = B^\dagger
+        // G^{-1} B$ and $M_2 = B^\dagger G^{-1} \hat{B}$:
         M4_matrix.mmult(M1_matrix, B_matrix);
         M4_matrix.mmult(M2_matrix, B_hat_matrix);
 
-        // We also compute the matrix $M_3 = \hat{B}^\dagger
-        // G^{-1} \hat{B} using $M_5$ and then
-        // subtract
-        // $\mathbf{D}$:
+        // We also compute the matrix $M_3 = \hat{B}^\dagger G^{-1} \hat{B}$
+        // using $M_5$ and then subtract $D$:
         M5_matrix.mmult(M3_matrix, B_hat_matrix);
         M3_matrix.add(-1.0, D_matrix);
 
@@ -1378,8 +1374,7 @@ namespace Step100
         M1_matrix.invert();
 
         // If the flag solves interior is set to true, we have already the
-        // solution on the skeleton and only need to perform $u_h =
-        // M_1^{-1}
+        // solution on the skeleton and only need to perform $u_h = M_1^{-1}
         // (M_4 l - M_2 \hat{u}_h)$ on each cell.
         if (solve_interior)
           {
@@ -1414,7 +1409,7 @@ namespace Step100
             cell_matrix = tmp_matrix2;
 
             // Then we compute the cell RHS using $(M_5 -
-            // M_2^\dagger M_1^{-1} M_4)\mathbf{l} -
+            // M_2^\dagger M_1^{-1} M_4)l -
             // G$.
             tmp_matrix.mmult(tmp_matrix3, M4_matrix);
             M5_matrix.add(-1.0, tmp_matrix3);
@@ -1434,20 +1429,18 @@ namespace Step100
 
   // @sect3{DPG::solve}
   // This function is in charge of solving the linear system assembled and has
-  // nothing specific to DPG per se. The method just allows us to use the
-  // Conjugate Gradient iterative solver so that is what is implemented here.
-  // Note that because we do not have any preconditioner, the number of
-  // iterations can be quite high. For simplicity, we put a high upper limit on
-  // the number of iterations, but in practice one would want to change this
-  // function to have a more robust solver. The tolerance for the convergence
-  // here is defined proportional to the $L^2$ norm of the RHS vector so the
-  // stopping criterion is scaled aware.
+  // nothing specific to DPG per se. Nonetheless, the method allows us to use
+  // the Conjugate Gradient iterative solver . Note that because we do not have
+  // any preconditioner, the number of iterations can be quite high. For
+  // simplicity, we put a high upper limit on the number of iterations, but in
+  // practice one would want to change this function to have a more robust
+  // solver. The tolerance for the convergence here is defined proportional to
+  // the $L^2$ norm of the RHS vector so the stopping criterion is scaled aware.
   template <int dim>
   void DPGHelmholtz<dim>::solve_linear_system_skeleton()
   {
     std::cout << std::endl << "Solving the DPG system..." << std::endl;
 
-    // Iterative solver
     SolverControl solver_control(100000, 1e-10 * system_rhs.l2_norm());
     SolverCG<Vector<double>> solver(solver_control);
     solver.solve(system_matrix,
@@ -1500,7 +1493,7 @@ namespace Step100
       DataComponentInterpretation::component_is_scalar);
 
     // Once the setup is done, we add the solution vector to the DataOut object,
-    // build the patches for visualization, and write the output to a VTK file.
+    // build the patches for visualization, and write the output.
     data_out.add_data_vector(solution_interior,
                              solution_interior_names,
                              DataOut<dim>::type_automatic,
@@ -1512,8 +1505,8 @@ namespace Step100
                          ".vtk");
     data_out.write_vtk(output);
 
-    // Then we do the same for the skeleton solution. The main difference here
-    // is that every component are scalars.
+    // Then we do the same for the skeleton solution. The main difference here,
+    // beside the use of DataOutFaces, is that every component are scalars.
     DataOutFaces<dim> data_out_faces(false);
     data_out_faces.attach_dof_handler(dof_handler_trial_skeleton);
 
@@ -1539,14 +1532,14 @@ namespace Step100
 
   // @sect3{DPG::calculate_error}
   // In this function, we compute the $L^2$ error of each component of our
-  // solution, that is to say for the velocity and pressure real and imaginary
-  // parts for both the interior and skeleton solutions. Because we want to have
-  // all the different information and our solution vectors for the interior
-  // and for the skeleton separately, we cannot use the
-  // VectorTools::integrate_difference function directly. Instead, we will
-  // perform the computation "by hand" by looping over all the cells and faces,
-  // interpolating the solution at the quadrature points, and computing the
-  // error with respect to the analytical solution at those points.
+  // solution, i.e., for the real and imaginary parts of the velocity and
+  // pressure for both the interior and skeleton solutions. Because we want to
+  // have all the error for all the different components of our solution vectors
+  // separately, we cannot use the VectorTools::integrate_difference function
+  // directly. Instead, we will perform the computation "by hand" by looping
+  // over all the cells and faces, interpolating the solution at the quadrature
+  // points, and computing the error with respect to the analytical solution at
+  // those points.
   template <int dim>
   void DPGHelmholtz<dim>::calculate_L2_error()
   {
@@ -1582,16 +1575,14 @@ namespace Step100
     double L2_error_u_hat_imag = 0;
 
     // To compute the error for the velocity field on the faces we will need to
-    // compute the obtain the normal component of our analytical solution on
-    // those faces. Here we create a variable to store the result of the scalar
-    // product.
+    // compute the normal component of our analytical solution on those faces.
+    // Here we create a variable to store the result of those scalar product.
     double u_hat_n_analytical_real = 0.;
     double u_hat_n_analytical_imag = 0.;
 
     // When looping on each cell or face, we will extract the different field
     // solution obtain numerically. The containers used to store the
-    // interpolated solution at the quadrature points are declared in using
-    // std::vector.
+    // interpolated solution at the quadrature points are declared below.
     std::vector<Tensor<1, dim>> local_u_real(n_q_points);
     std::vector<Tensor<1, dim>> local_u_imag(n_q_points);
     std::vector<double>         local_p_real(n_q_points);
@@ -1601,8 +1592,8 @@ namespace Step100
     std::vector<double>         local_p_hat_real(n_face_q_points);
     std::vector<double>         local_p_hat_imag(n_face_q_points);
 
-    // Here we use the previously defined analytical solution classes so we can
-    // perform the computation later on.
+    // Here we initialize analytical solution object from the previously defined
+    // classes.
     AnalyticalSolution_p_real<dim> analytical_solution_p_real(wavenumber,
                                                               theta);
     AnalyticalSolution_p_imag<dim> analytical_solution_p_imag(wavenumber,
@@ -1702,18 +1693,10 @@ namespace Step100
                 // orientation during the assembly. Each face is only integrated
                 // when we are at the cell with the lowest index among the two
                 // cells sharing the face. Boundary faces are always integrated.
-                int neighbor_cell_id = -1;
-                if (face->at_boundary())
-                  {
-                    neighbor_cell_id = INT_MAX;
-                  }
-                else
-                  {
-                    neighbor_cell_id = cell->neighbor(face_no)->index();
-                  }
-                const auto current_cell_id = cell->index();
-
-                if (neighbor_cell_id < current_cell_id)
+                int neighbor_cell_id = face->at_boundary() ?
+                                         INT_MAX :
+                                         cell->neighbor(face_no)->index();
+                if (neighbor_cell_id < cell->index())
                   {
                     continue;
                   }
@@ -1723,8 +1706,9 @@ namespace Step100
                 // analytical solution with the normal vector at the face
                 // quadrature points. We also take the absolute of the values
                 // for both the numerical and analytical solutions because the
-                // sign only depends on the orientation of the normal vector
-                // convention and changes from one face to another.
+                // sign only depends on the orientation of flux from the
+                // convention with respect to the normal vector and therefore
+                // change from one face to another.
                 u_hat_n_analytical_real = 0.;
                 u_hat_n_analytical_imag = 0.;
                 for (unsigned int i = 0; i < dim; ++i)
@@ -1821,7 +1805,9 @@ namespace Step100
   // @sect3{DPG::run}
   // This function is the main loop of the program using all the previously
   // defined functions. It is also where the convergence rates are obtained
-  // after all the refinement cycles.
+  // after all the refinement cycles. Note again, after solving the skeleton
+  // system, we call the assembly function another time to solve for the
+  // interior.
   template <int dim>
   void DPGHelmholtz<dim>::run()
   {
@@ -1834,9 +1820,6 @@ namespace Step100
         setup_system();
         assemble_system(false);
         solve_linear_system_skeleton();
-
-        // After solving the skeleton system, we call the assembly function
-        // another time to solve for the interior.
         assemble_system(true);
         calculate_L2_error();
         output_results(cycle);
@@ -1869,7 +1852,7 @@ namespace Step100
 // @sect3{The <code>main</code> function}
 
 // This is the main function of the program. It creates an instance of the
-// DPGHelmholtz class and calls its run method.
+// <code>DPGHelmholtz</code> class and calls its run method.
 int main()
 {
   const unsigned int dim = 2;
@@ -1877,10 +1860,11 @@ int main()
   try
     {
       // Here we create the necessary variables for our 2D DPG Helmholtz, i.e.,
-      // the degree of the trial space <code>degree</code>, the degree
-      // difference between the test and trial spaces <code>delta_degree</code>,
-      // the wavenumber <code>wavenumber</code>, and the angle of incidence of
-      // the plane wave <code>theta</code> in radians.
+      // the degree $p$ of the trial space <code>degree</code>, the degree
+      // difference $\Delta p$ between the test and trial spaces
+      // <code>delta_degree</code>, the wavenumber $k$ <code>wavenumber</code>,
+      // and the angle of incidence of the plane wave $\theta$
+      // <code>theta</code> in radians.
       int    degree       = 2;
       int    delta_degree = 1;
       double wavenumber   = 20 * M_PI;
