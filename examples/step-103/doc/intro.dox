@@ -1,0 +1,31 @@
+<i> This program was contributed by Julian Brotz (Technical University of Munich),
+Magdalena Schreter-Fleischacker (Technical University of Munich) and
+Bruno Blais (Polytechnique Montréal).
+Bruno Blais acknowledges funding from the Natural Sciences and Engineering
+Research Council of Canada (NSERC) through Discovery Grant RGPIN-2020-04510,
+the Canada Research Chair (Level 2) in Computer-Assisted Design and Scale-Up
+of Alternative Energy Vectors for Sustainable Chemical Processes
+(CRC-2022-00340) under the Multiphysics Multiphase Intensification
+Automatization Workbench (MMIAOW), as well as computational resources
+provided by the Digital Alliance of Canada.</i>
+
+<h1>Introduction</h1>
+
+Something about granular flow being important in life
+
+Coarse introduction to the discrete element method
+
+<h3>Discrete Element Method (DEM)</h3>
+
+<h4>Time integration</h4>
+
+<h4>Contact detection</h4>
+
+<h4>Implementation of the boundary conditions</h4>
+
+
+<h3>Case studied</h3>
+
+
+
+This is the method that is presented in the code that follows.
