@@ -1,0 +1,7 @@
+
+DEAL::FE_FaceNedelec<2>(0): max prolongation error = 0.00000, max restriction error = 0.00000
+DEAL::FE_FaceNedelec<2>(1): max prolongation error = 0.00000, max restriction error = 0.00000
+DEAL::FE_FaceNedelec<2>(2): max prolongation error = 0.00000, max restriction error = 0.00000
+DEAL::FE_FaceNedelec<3>(0): max prolongation error = 0.00000, max restriction error = 0.00000
+DEAL::FE_FaceNedelec<3>(1): max prolongation error = 0.00000, max restriction error = 0.00000
+DEAL::OK

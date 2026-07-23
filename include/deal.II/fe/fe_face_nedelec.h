@@ -15,6 +15,8 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/mutex.h>
+
 #include <deal.II/fe/fe_nedelec.h>
 #include <deal.II/fe/fe_poly_tensor.h>
 
@@ -57,14 +59,18 @@ DEAL_II_NAMESPACE_OPEN
  * cell interior; the element is nevertheless intended for use with FEFaceValues
  * and FESubfaceValues, where the tangential trace is the quantity of interest.
  *
- * @note The current implementation follows the deliberately lean approach of
- * FE_NedelecNodal: hanging-node constraints (i.e., the face and subface
- * interpolation matrices) and the restriction/prolongation (multigrid)
- * matrices are not yet provided, so the element can currently not be used on
- * adaptively refined meshes. Non-standard face orientations are fully
- * supported: the sign changes of the edge degrees of freedom are inherited
- * from FE_PolyTensor, and the permutation and sign changes of the face
- * degrees of freedom use the same tables as FE_Nedelec.
+ * @note Hanging-node constraints and the restriction and prolongation
+ * matrices are implemented by reusing the corresponding structures of
+ * FE_Nedelec: the interface constraints and the face and subface
+ * interpolation matrices act only on face degrees of freedom, which this
+ * element shares with FE_Nedelec, and the cell transfer matrices are the
+ * leading principal blocks of FE_Nedelec's (the edge and face degrees of
+ * freedom of the embedded or restricted function do not depend on the
+ * interior ones). The element can therefore be used on adaptively refined
+ * meshes. Non-standard face orientations are fully supported: the sign
+ * changes of the edge degrees of freedom are inherited from FE_PolyTensor,
+ * and the permutation and sign changes of the face degrees of freedom use
+ * the same tables as FE_Nedelec.
  */
 template <int dim>
 class FE_FaceNedelec : public FE_PolyTensor<dim>
@@ -101,6 +107,76 @@ public:
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
     std::vector<double>               &nodal_values) const override;
+
+  /**
+   * Return the matrix interpolating from a face of one element to the face
+   * of the neighboring element. Since the face degrees of freedom of this
+   * element coincide with those of FE_Nedelec, the computation is delegated
+   * to the underlying FE_Nedelec elements.
+   *
+   * Derived elements will have to implement this function. They may only
+   * provide interpolation matrices for certain source finite elements, for
+   * example those from the same family. If they don't implement
+   * interpolation from a given element, then they must throw an exception of
+   * type FiniteElement::ExcInterpolationNotImplemented.
+   */
+  virtual void
+  get_face_interpolation_matrix(const FiniteElement<dim> &source,
+                                FullMatrix<double> &interpolation_matrix,
+                                const unsigned int  face_no = 0) const override;
+
+  /**
+   * Return the matrix interpolating from a face of one element to the
+   * subface of the neighboring element. Since the face degrees of freedom of
+   * this element coincide with those of FE_Nedelec, the computation is
+   * delegated to the underlying FE_Nedelec elements.
+   *
+   * Derived elements will have to implement this function. They may only
+   * provide interpolation matrices for certain source finite elements, for
+   * example those from the same family. If they don't implement
+   * interpolation from a given element, then they must throw an exception of
+   * type FiniteElement::ExcInterpolationNotImplemented.
+   */
+  virtual void
+  get_subface_interpolation_matrix(
+    const FiniteElement<dim> &source,
+    const unsigned int        subface,
+    FullMatrix<double>       &interpolation_matrix,
+    const unsigned int        face_no = 0) const override;
+
+  /**
+   * Return the prolongation (embedding) matrix of the given child for the
+   * given refinement case. The matrix is the leading principal block of
+   * FE_Nedelec's prolongation matrix: the edge and face degrees of freedom
+   * of the embedded function do not depend on the interior degrees of
+   * freedom of the coarse cell. Like in FE_Nedelec, the matrix is computed
+   * (through FE_Nedelec) on first request.
+   */
+  virtual const FullMatrix<double> &
+  get_prolongation_matrix(
+    const unsigned int         child,
+    const RefinementCase<dim> &refinement_case =
+      RefinementCase<dim>::isotropic_refinement) const override;
+
+  /**
+   * Return the restriction matrix of the given child for the given
+   * refinement case. The matrix is the leading principal block of
+   * FE_Nedelec's restriction matrix: the coarse edge and face node
+   * functionals act on the tangential trace on the coarse edges and faces,
+   * which lie on the boundaries of the child cells and are therefore
+   * determined by the child edge and face degrees of freedom alone. Like in
+   * FE_Nedelec, the matrix is computed (through FE_Nedelec) on first
+   * request.
+   */
+  virtual const FullMatrix<double> &
+  get_restriction_matrix(
+    const unsigned int         child,
+    const RefinementCase<dim> &refinement_case =
+      RefinementCase<dim>::isotropic_refinement) const override;
+
+  // documentation inherited from the base class
+  virtual bool
+  hp_constraints_are_implemented() const override;
 
   // documentation inherited from the base class
   virtual std::vector<std::pair<unsigned int, unsigned int>>
@@ -149,11 +225,19 @@ private:
   /**
    * The underlying FE_Nedelec element of which this element represents the
    * tangential trace. It provides the generalized support points, the
-   * interpolation of function values to degree-of-freedom values, and the
-   * per-face support information, all restricted to the edge and face degrees
-   * of freedom.
+   * interpolation of function values to degree-of-freedom values, the
+   * per-face support information, the interface constraints, the face and
+   * subface interpolation matrices, and the restriction and prolongation
+   * matrices, all restricted to the edge and face degrees of freedom.
    */
   FE_Nedelec<dim> fe_nedelec;
+
+  /**
+   * Mutex variables used for protecting the on-demand computation of the
+   * restriction and prolongation matrices.
+   */
+  mutable Threads::Mutex restriction_matrix_mutex;
+  mutable Threads::Mutex prolongation_matrix_mutex;
 };
 
 /** @} */

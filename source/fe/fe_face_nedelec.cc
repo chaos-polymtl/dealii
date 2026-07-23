@@ -193,6 +193,13 @@ FE_FaceNedelec<dim>::FE_FaceNedelec(const unsigned int order)
   // edge/face degrees of freedom of this element and are simply carried along.
   this->generalized_support_points = fe_nedelec.get_generalized_support_points();
 
+  // The interface constraints (constraining the degrees of freedom on a
+  // refined face to those on the unrefined neighboring face) of FE_Nedelec
+  // are built from face embedding matrices and thus involve only face (edge
+  // and quad) degrees of freedom, which this element shares with FE_Nedelec.
+  // They can therefore be copied verbatim.
+  this->interface_constraints = fe_nedelec.constraints();
+
   // Finally set up the permutation and sign changes of the face (quad) degrees
   // of freedom for non-standard face orientations in 3d. The edge (line)
   // degrees of freedom only need sign changes, which are handled at fill time
@@ -262,6 +269,172 @@ FE_FaceNedelec<dim>::convert_generalized_support_point_values_to_dof_values(
   std::copy(full_nodal_values.begin(),
             full_nodal_values.begin() + this->n_dofs_per_cell(),
             nodal_values.begin());
+}
+
+
+
+template <int dim>
+void
+FE_FaceNedelec<dim>::get_face_interpolation_matrix(
+  const FiniteElement<dim> &source,
+  FullMatrix<double>       &interpolation_matrix,
+  const unsigned int        face_no) const
+{
+  Assert(interpolation_matrix.m() == source.n_dofs_per_face(face_no),
+         ExcDimensionMismatch(interpolation_matrix.m(),
+                              source.n_dofs_per_face(face_no)));
+  Assert(interpolation_matrix.n() == this->n_dofs_per_face(face_no),
+         ExcDimensionMismatch(interpolation_matrix.n(),
+                              this->n_dofs_per_face(face_no)));
+
+  // The face degrees of freedom of this element coincide with those of
+  // FE_Nedelec, and so do the face interpolation matrices. Delegate to the
+  // underlying FE_Nedelec elements.
+  if (const FE_FaceNedelec<dim> *source_fe =
+        dynamic_cast<const FE_FaceNedelec<dim> *>(&source))
+    {
+      fe_nedelec.get_face_interpolation_matrix(source_fe->fe_nedelec,
+                                               interpolation_matrix,
+                                               face_no);
+    }
+  else if (dynamic_cast<const FE_Nothing<dim> *>(&source) != nullptr)
+    {
+      // nothing to do here, the FE_Nothing has no degrees of freedom anyway
+    }
+  else
+    AssertThrow(
+      false, (typename FiniteElement<dim>::ExcInterpolationNotImplemented()));
+}
+
+
+
+template <int dim>
+void
+FE_FaceNedelec<dim>::get_subface_interpolation_matrix(
+  const FiniteElement<dim> &source,
+  const unsigned int        subface,
+  FullMatrix<double>       &interpolation_matrix,
+  const unsigned int        face_no) const
+{
+  Assert(interpolation_matrix.m() == source.n_dofs_per_face(face_no),
+         ExcDimensionMismatch(interpolation_matrix.m(),
+                              source.n_dofs_per_face(face_no)));
+  Assert(interpolation_matrix.n() == this->n_dofs_per_face(face_no),
+         ExcDimensionMismatch(interpolation_matrix.n(),
+                              this->n_dofs_per_face(face_no)));
+
+  // As in get_face_interpolation_matrix(), delegate to the underlying
+  // FE_Nedelec elements.
+  if (const FE_FaceNedelec<dim> *source_fe =
+        dynamic_cast<const FE_FaceNedelec<dim> *>(&source))
+    {
+      fe_nedelec.get_subface_interpolation_matrix(source_fe->fe_nedelec,
+                                                  subface,
+                                                  interpolation_matrix,
+                                                  face_no);
+    }
+  else if (dynamic_cast<const FE_Nothing<dim> *>(&source) != nullptr)
+    {
+      // nothing to do here, the FE_Nothing has no degrees of freedom anyway
+    }
+  else
+    AssertThrow(
+      false, (typename FiniteElement<dim>::ExcInterpolationNotImplemented()));
+}
+
+
+
+template <int dim>
+const FullMatrix<double> &
+FE_FaceNedelec<dim>::get_prolongation_matrix(
+  const unsigned int         child,
+  const RefinementCase<dim> &refinement_case) const
+{
+  AssertIndexRange(refinement_case,
+                   RefinementCase<dim>::isotropic_refinement + 1);
+  Assert(refinement_case != RefinementCase<dim>::no_refinement,
+         ExcMessage(
+           "Prolongation matrices are only available for refined cells!"));
+  AssertIndexRange(child, this->reference_cell().n_children(refinement_case));
+
+  std::lock_guard<std::mutex> lock(prolongation_matrix_mutex);
+
+  // initialization upon first request
+  if (this->prolongation[refinement_case - 1][child].n() == 0)
+    {
+      // The prolongation (embedding) of FE_Nedelec is exact, and the interior
+      // shape functions have vanishing tangential trace on the cell boundary.
+      // The edge and face degrees of freedom of the embedded function on a
+      // child cell therefore depend only on the edge and face degrees of
+      // freedom on the coarse cell, i.e., the prolongation matrix of this
+      // element is the leading principal block of FE_Nedelec's.
+      const FullMatrix<double> &full_matrix =
+        fe_nedelec.get_prolongation_matrix(child, refinement_case);
+
+      // need to get a non-const reference in order to be able to fill the
+      // matrix inside a const function
+      FullMatrix<double> &this_matrix =
+        const_cast<FE_FaceNedelec<dim> &>(*this)
+          .prolongation[refinement_case - 1][child];
+      this_matrix.reinit(this->n_dofs_per_cell(), this->n_dofs_per_cell());
+      for (unsigned int i = 0; i < this->n_dofs_per_cell(); ++i)
+        for (unsigned int j = 0; j < this->n_dofs_per_cell(); ++j)
+          this_matrix(i, j) = full_matrix(i, j);
+    }
+
+  return this->prolongation[refinement_case - 1][child];
+}
+
+
+
+template <int dim>
+const FullMatrix<double> &
+FE_FaceNedelec<dim>::get_restriction_matrix(
+  const unsigned int         child,
+  const RefinementCase<dim> &refinement_case) const
+{
+  AssertIndexRange(refinement_case,
+                   RefinementCase<dim>::isotropic_refinement + 1);
+  Assert(refinement_case != RefinementCase<dim>::no_refinement,
+         ExcMessage(
+           "Restriction matrices are only available for refined cells!"));
+  AssertIndexRange(child, this->reference_cell().n_children(refinement_case));
+
+  std::lock_guard<std::mutex> lock(restriction_matrix_mutex);
+
+  // initialization upon first request
+  if (this->restriction[refinement_case - 1][child].n() == 0)
+    {
+      // The coarse edge and face node functionals act on the tangential
+      // trace on the coarse edges and faces. These lie on the boundaries of
+      // the child cells, where the tangential trace is determined by the
+      // child edge and face degrees of freedom alone, i.e., the restriction
+      // matrix of this element is the leading principal block of
+      // FE_Nedelec's.
+      const FullMatrix<double> &full_matrix =
+        fe_nedelec.get_restriction_matrix(child, refinement_case);
+
+      // need to get a non-const reference in order to be able to fill the
+      // matrix inside a const function
+      FullMatrix<double> &this_matrix =
+        const_cast<FE_FaceNedelec<dim> &>(*this)
+          .restriction[refinement_case - 1][child];
+      this_matrix.reinit(this->n_dofs_per_cell(), this->n_dofs_per_cell());
+      for (unsigned int i = 0; i < this->n_dofs_per_cell(); ++i)
+        for (unsigned int j = 0; j < this->n_dofs_per_cell(); ++j)
+          this_matrix(i, j) = full_matrix(i, j);
+    }
+
+  return this->restriction[refinement_case - 1][child];
+}
+
+
+
+template <int dim>
+bool
+FE_FaceNedelec<dim>::hp_constraints_are_implemented() const
+{
+  return true;
 }
 
 
