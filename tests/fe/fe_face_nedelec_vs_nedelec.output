@@ -9,4 +9,6 @@ DEAL::FE_FaceNedelec<3>(0) (affine): max tangential difference to FE_Nedelec = 0
 DEAL::FE_FaceNedelec<3>(0) (distorted): max tangential difference to FE_Nedelec = 0.00000
 DEAL::FE_FaceNedelec<3>(1) (affine): max tangential difference to FE_Nedelec = 0.00000
 DEAL::FE_FaceNedelec<3>(1) (distorted): max tangential difference to FE_Nedelec = 0.00000
+DEAL::FE_FaceNedelec<3>(2) (affine): max tangential difference to FE_Nedelec = 0.00000
+DEAL::FE_FaceNedelec<3>(2) (distorted): max tangential difference to FE_Nedelec = 0.00000
 DEAL::OK

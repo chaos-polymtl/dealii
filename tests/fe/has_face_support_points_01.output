@@ -121,6 +121,10 @@ DEAL::  FE_FaceP<2>(1)
 DEAL::    has_face_support_points=false
 DEAL::  FE_FaceP<2>(3)
 DEAL::    has_face_support_points=false
+DEAL::  FE_FaceNedelec<2>(0)
+DEAL::    has_face_support_points=false
+DEAL::  FE_FaceNedelec<2>(1)
+DEAL::    has_face_support_points=false
 DEAL::  FE_DGRaviartThomas<2>(0)
 DEAL::    has_face_support_points=true
 DEAL::  FE_DGRaviartThomas<2>(1)
@@ -228,6 +232,10 @@ DEAL::    has_face_support_points=false
 DEAL::  FE_FaceP<3>(1)
 DEAL::    has_face_support_points=false
 DEAL::  FE_FaceP<3>(3)
+DEAL::    has_face_support_points=false
+DEAL::  FE_FaceNedelec<3>(0)
+DEAL::    has_face_support_points=false
+DEAL::  FE_FaceNedelec<3>(1)
 DEAL::    has_face_support_points=false
 DEAL::  FE_DGRaviartThomas<3>(0)
 DEAL::    has_face_support_points=true

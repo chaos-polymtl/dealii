@@ -113,7 +113,7 @@ main()
       compare<2>(order, false);
       compare<2>(order, true);
     }
-  for (unsigned int order = 0; order < 2; ++order)
+  for (unsigned int order = 0; order < 3; ++order)
     {
       compare<3>(order, false);
       compare<3>(order, true);

@@ -267,15 +267,6 @@ FE_FaceNedelec<dim>::convert_generalized_support_point_values_to_dof_values(
 
 
 template <int dim>
-bool
-FE_FaceNedelec<dim>::hp_constraints_are_implemented() const
-{
-  return true;
-}
-
-
-
-template <int dim>
 std::vector<std::pair<unsigned int, unsigned int>>
 FE_FaceNedelec<dim>::hp_vertex_dof_identities(const FiniteElement<dim> &) const
 {

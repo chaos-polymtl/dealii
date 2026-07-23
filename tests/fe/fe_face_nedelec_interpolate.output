@@ -1,0 +1,7 @@
+
+DEAL::FE_FaceNedelec<2>(0): max tangential interpolation error = 0.00000
+DEAL::FE_FaceNedelec<2>(1): max tangential interpolation error = 0.00000
+DEAL::FE_FaceNedelec<2>(2): max tangential interpolation error = 0.00000
+DEAL::FE_FaceNedelec<3>(0): max tangential interpolation error = 0.00000
+DEAL::FE_FaceNedelec<3>(1): max tangential interpolation error = 0.00000
+DEAL::OK

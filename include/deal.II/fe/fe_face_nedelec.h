@@ -32,7 +32,7 @@ DEAL_II_NAMESPACE_OPEN
  * trace of FE_Q): its degrees of freedom are exactly the edge and face degrees
  * of freedom of FE_Nedelec, while the cell-interior degrees of freedom are
  * dropped. The remaining degrees of freedom are tangentially continuous across
- * the edges shared by neighbouring faces, so the element is H(curl)-conforming
+ * the edges shared by neighboring faces, so the element is H(curl)-conforming
  * on the face skeleton and is a natural trace/hybridization space for
  * H(curl) (Maxwell / eddy-current) problems.
  *
@@ -58,10 +58,13 @@ DEAL_II_NAMESPACE_OPEN
  * and FESubfaceValues, where the tangential trace is the quantity of interest.
  *
  * @note The current implementation follows the deliberately lean approach of
- * FE_NedelecNodal: hp-hanging-node constraints, the non-standard face
- * orientation permutation of face degrees of freedom, and the
- * restriction/prolongation (multigrid) matrices are not yet provided. Standard
- * orientation and edge sign changes (inherited from FE_PolyTensor) are handled.
+ * FE_NedelecNodal: hanging-node constraints (i.e., the face and subface
+ * interpolation matrices) and the restriction/prolongation (multigrid)
+ * matrices are not yet provided, so the element can currently not be used on
+ * adaptively refined meshes. Non-standard face orientations are fully
+ * supported: the sign changes of the edge degrees of freedom are inherited
+ * from FE_PolyTensor, and the permutation and sign changes of the face
+ * degrees of freedom use the same tables as FE_Nedelec.
  */
 template <int dim>
 class FE_FaceNedelec : public FE_PolyTensor<dim>
@@ -98,10 +101,6 @@ public:
   convert_generalized_support_point_values_to_dof_values(
     const std::vector<Vector<double>> &support_point_values,
     std::vector<double>               &nodal_values) const override;
-
-  // documentation inherited from the base class
-  virtual bool
-  hp_constraints_are_implemented() const override;
 
   // documentation inherited from the base class
   virtual std::vector<std::pair<unsigned int, unsigned int>>

@@ -44,6 +44,14 @@ DEAL::
 DEAL::Testing FE_FaceP<2>(1)
 DEAL::1 0 1 0 1 0 1 0 
 DEAL::
+DEAL::Testing FE_FaceNedelec<2>(0)
+DEAL::1 1 1 1 
+DEAL::1 1 1 1 
+DEAL::
+DEAL::Testing FE_FaceNedelec<2>(1)
+DEAL::1 1 1 1 1 1 1 1 
+DEAL::1 1 1 1 1 1 1 1 
+DEAL::
 DEAL::Testing FESystem<2>[FE_Q<2>(1)^2-FE_Q<2>(2)]
 DEAL::1 0 0 1 0 0 1 0 0 1 0 0 0 0 0 0 0 
 DEAL::0 1 0 0 1 0 0 1 0 0 1 0 0 0 0 0 0 
@@ -103,6 +111,16 @@ DEAL::1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
 DEAL::
 DEAL::Testing FE_FaceP<3>(1)
 DEAL::1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 
+DEAL::
+DEAL::Testing FE_FaceNedelec<3>(0)
+DEAL::1 1 1 1 1 1 1 1 1 1 1 1 
+DEAL::1 1 1 1 1 1 1 1 1 1 1 1 
+DEAL::1 1 1 1 1 1 1 1 1 1 1 1 
+DEAL::
+DEAL::Testing FE_FaceNedelec<3>(1)
+DEAL::1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 
+DEAL::1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 
+DEAL::1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 
 DEAL::
 DEAL::Testing FESystem<3>[FE_Q<3>(1)^2-FE_Q<3>(2)]
 DEAL::1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
