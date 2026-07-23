@@ -22,6 +22,7 @@
 #include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_face.h>
+#include <deal.II/fe/fe_face_nedelec.h>
 #include <deal.II/fe/fe_nedelec.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_q_hierarchical.h>
@@ -81,6 +82,12 @@ test_2d_3d(std::vector<FiniteElement<dim> *> &finite_elements)
   deallog << (*finite_elements.rbegin())->get_name() << std::endl;
   FE_Nedelec<dim> *ned1 = new FE_Nedelec<dim>(1);
   finite_elements.push_back(ned1);
+  deallog << (*finite_elements.rbegin())->get_name() << std::endl;
+
+  // Hcurl face (tangential trace) elements
+  finite_elements.push_back(new FE_FaceNedelec<dim>(0));
+  deallog << (*finite_elements.rbegin())->get_name() << std::endl;
+  finite_elements.push_back(new FE_FaceNedelec<dim>(1));
   deallog << (*finite_elements.rbegin())->get_name() << std::endl;
 }
 

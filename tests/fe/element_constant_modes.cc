@@ -14,6 +14,7 @@
 #include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_face.h>
+#include <deal.II/fe/fe_face_nedelec.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_q_dg0.h>
 #include <deal.II/fe/fe_q_hierarchical.h>
@@ -57,6 +58,8 @@ test()
   print_constant_modes(FE_Q_Hierarchical<dim>(2));
   print_constant_modes(FE_FaceQ<dim>(1));
   print_constant_modes(FE_FaceP<dim>(1));
+  print_constant_modes(FE_FaceNedelec<dim>(0));
+  print_constant_modes(FE_FaceNedelec<dim>(1));
   print_constant_modes(FESystem<dim>(FE_Q<dim>(1), 2, FE_Q<dim>(2), 1));
   print_constant_modes(
     FESystem<dim>(FE_DGP<dim>(1), 1, FE_Q_iso_Q1<dim>(2), 1));

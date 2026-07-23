@@ -1,0 +1,71 @@
+
+DEAL::Identities for FE_FaceNedelec<2>(0) and FE_FaceNedelec<2>(0): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<2>(0) and FE_FaceNedelec<2>(1): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<2>(0) and FE_FaceNedelec<2>(2): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<2>(0) and FE_FaceNedelec<2>(3): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<2>(1) and FE_FaceNedelec<2>(0): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<2>(1) and FE_FaceNedelec<2>(1): 2
+DEAL::0 0
+DEAL::1 1
+DEAL::Identities for FE_FaceNedelec<2>(1) and FE_FaceNedelec<2>(2): 2
+DEAL::0 0
+DEAL::1 1
+DEAL::Identities for FE_FaceNedelec<2>(1) and FE_FaceNedelec<2>(3): 2
+DEAL::0 0
+DEAL::1 1
+DEAL::Identities for FE_FaceNedelec<2>(2) and FE_FaceNedelec<2>(0): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<2>(2) and FE_FaceNedelec<2>(1): 2
+DEAL::0 0
+DEAL::1 1
+DEAL::Identities for FE_FaceNedelec<2>(2) and FE_FaceNedelec<2>(2): 3
+DEAL::0 0
+DEAL::1 1
+DEAL::2 2
+DEAL::Identities for FE_FaceNedelec<2>(2) and FE_FaceNedelec<2>(3): 3
+DEAL::0 0
+DEAL::1 1
+DEAL::2 2
+DEAL::Identities for FE_FaceNedelec<2>(3) and FE_FaceNedelec<2>(0): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<2>(3) and FE_FaceNedelec<2>(1): 2
+DEAL::0 0
+DEAL::1 1
+DEAL::Identities for FE_FaceNedelec<2>(3) and FE_FaceNedelec<2>(2): 3
+DEAL::0 0
+DEAL::1 1
+DEAL::2 2
+DEAL::Identities for FE_FaceNedelec<2>(3) and FE_FaceNedelec<2>(3): 4
+DEAL::0 0
+DEAL::1 1
+DEAL::2 2
+DEAL::3 3
+DEAL::Identities for FE_FaceNedelec<3>(0) and FE_FaceNedelec<3>(0): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<3>(0) and FE_FaceNedelec<3>(1): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<3>(0) and FE_FaceNedelec<3>(2): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<3>(1) and FE_FaceNedelec<3>(0): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<3>(1) and FE_FaceNedelec<3>(1): 2
+DEAL::0 0
+DEAL::1 1
+DEAL::Identities for FE_FaceNedelec<3>(1) and FE_FaceNedelec<3>(2): 2
+DEAL::0 0
+DEAL::1 1
+DEAL::Identities for FE_FaceNedelec<3>(2) and FE_FaceNedelec<3>(0): 1
+DEAL::0 0
+DEAL::Identities for FE_FaceNedelec<3>(2) and FE_FaceNedelec<3>(1): 2
+DEAL::0 0
+DEAL::1 1
+DEAL::Identities for FE_FaceNedelec<3>(2) and FE_FaceNedelec<3>(2): 3
+DEAL::0 0
+DEAL::1 1
+DEAL::2 2
+DEAL::OK

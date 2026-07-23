@@ -35,6 +35,7 @@
 #include <deal.II/fe/fe_dgp_nonparametric.h>
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_face.h>
+#include <deal.II/fe/fe_face_nedelec.h>
 #include <deal.II/fe/fe_nedelec.h>
 #include <deal.II/fe/fe_nedelec_sz.h>
 #include <deal.II/fe/fe_nothing.h>
@@ -1136,6 +1137,9 @@ namespace FETools
           std::make_unique<FETools::FEFactory<FE_Nedelec<dim>>>();
         result["FE_NedelecSZ"] =
           std::make_unique<FETools::FEFactory<FE_NedelecSZ<dim>>>();
+        if constexpr (dim >= 2)
+          result["FE_FaceNedelec"] =
+            std::make_unique<FETools::FEFactory<FE_FaceNedelec<dim>>>();
         result["FE_DGPNonparametric"] =
           std::make_unique<FETools::FEFactory<FE_DGPNonparametric<dim>>>();
         result["FE_DGP"] = std::make_unique<FETools::FEFactory<FE_DGP<dim>>>();

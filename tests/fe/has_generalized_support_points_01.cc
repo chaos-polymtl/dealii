@@ -20,6 +20,7 @@
 #include <deal.II/fe/fe_dgp.h>
 #include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_face.h>
+#include <deal.II/fe/fe_face_nedelec.h>
 #include <deal.II/fe/fe_nedelec.h>
 #include <deal.II/fe/fe_nothing.h>
 #include <deal.II/fe/fe_q.h>
@@ -106,6 +107,13 @@ test_finite_elements()
   finite_elements.push_back(new FE_FaceP<dim>(0));
   finite_elements.push_back(new FE_FaceP<dim>(1));
   finite_elements.push_back(new FE_FaceP<dim>(3));
+
+  // Face Nedelec elements exist only for dim >= 2
+  if constexpr (dim >= 2)
+    {
+      finite_elements.push_back(new FE_FaceNedelec<dim>(0));
+      finite_elements.push_back(new FE_FaceNedelec<dim>(1));
+    }
 
   // Check vector elements in 2d and higher only
   test_2d_3d(finite_elements);

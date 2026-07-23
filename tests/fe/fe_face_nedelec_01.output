@@ -1,0 +1,54 @@
+
+DEAL::FE_FaceNedelec<2>(0)
+DEAL::  n_components         = 2
+DEAL::  n_dofs_per_vertex    = 0
+DEAL::  n_dofs_per_line      = 1
+DEAL::  n_dofs_per_hex       = 0
+DEAL::  n_dofs_per_face      = 1
+DEAL::  n_dofs_per_cell      = 4
+DEAL::  is_primitive         = no
+DEAL::  conforms(Hcurl)      = yes
+DEAL::  get_fe_by_name       = FE_FaceNedelec<2>(0)
+DEAL::FE_FaceNedelec<2>(1)
+DEAL::  n_components         = 2
+DEAL::  n_dofs_per_vertex    = 0
+DEAL::  n_dofs_per_line      = 2
+DEAL::  n_dofs_per_hex       = 0
+DEAL::  n_dofs_per_face      = 2
+DEAL::  n_dofs_per_cell      = 8
+DEAL::  is_primitive         = no
+DEAL::  conforms(Hcurl)      = yes
+DEAL::  get_fe_by_name       = FE_FaceNedelec<2>(1)
+DEAL::FE_FaceNedelec<2>(2)
+DEAL::  n_components         = 2
+DEAL::  n_dofs_per_vertex    = 0
+DEAL::  n_dofs_per_line      = 3
+DEAL::  n_dofs_per_hex       = 0
+DEAL::  n_dofs_per_face      = 3
+DEAL::  n_dofs_per_cell      = 12
+DEAL::  is_primitive         = no
+DEAL::  conforms(Hcurl)      = yes
+DEAL::  get_fe_by_name       = FE_FaceNedelec<2>(2)
+DEAL::FE_FaceNedelec<3>(0)
+DEAL::  n_components         = 3
+DEAL::  n_dofs_per_vertex    = 0
+DEAL::  n_dofs_per_line      = 1
+DEAL::  n_dofs_per_quad      = 0
+DEAL::  n_dofs_per_hex       = 0
+DEAL::  n_dofs_per_face      = 4
+DEAL::  n_dofs_per_cell      = 12
+DEAL::  is_primitive         = no
+DEAL::  conforms(Hcurl)      = yes
+DEAL::  get_fe_by_name       = FE_FaceNedelec<3>(0)
+DEAL::FE_FaceNedelec<3>(1)
+DEAL::  n_components         = 3
+DEAL::  n_dofs_per_vertex    = 0
+DEAL::  n_dofs_per_line      = 2
+DEAL::  n_dofs_per_quad      = 4
+DEAL::  n_dofs_per_hex       = 0
+DEAL::  n_dofs_per_face      = 12
+DEAL::  n_dofs_per_cell      = 48
+DEAL::  is_primitive         = no
+DEAL::  conforms(Hcurl)      = yes
+DEAL::  get_fe_by_name       = FE_FaceNedelec<3>(1)
+DEAL::OK
